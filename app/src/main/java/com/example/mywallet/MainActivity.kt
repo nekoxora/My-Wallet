@@ -61,6 +61,10 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
+import retrofit2.http.Query
+import androidx.compose.runtime.Composable
+import androidx.compose.material3.Icon
+import kotlinx.coroutines.withContext
 
 data class InvestasiData(val kode_emiten: String, val jumlah_lot: Int, val harga_beli: Double)
 data class DeleteData(val id: Int)
@@ -73,6 +77,13 @@ data class Transaksi(
     val harga: Double
 )
 
+data class HargaLiveResponse(
+    val status: String,
+    val emiten: String?,
+    val harga_live: Double?,
+    val message: String?
+)
+
 interface ApiService {
     @POST("api_keuangan/insert_investasi.php")
     suspend fun simpanInvestasi(@Body data: InvestasiData): ApiResponse
@@ -82,6 +93,9 @@ interface ApiService {
 
     @GET("api_keuangan/get_histori.php")
     suspend fun getHistori(): List<Transaksi>
+
+    @GET("api_keuangan/get_harga_live.php")
+    suspend fun getHargaLive(@Query("emiten") emiten: String): HargaLiveResponse
 }
 
 object RetrofitClient {
@@ -165,6 +179,7 @@ fun saveImageToInternalStorage(context: android.content.Context, uri: android.ne
 @Composable
 fun DashboardScreen(onNavigateToForm: () -> Unit, onNavigateToRincian: () -> Unit) {
     var listTransaksi by remember { mutableStateOf<List<Transaksi>>(emptyList()) }
+    var hargaLiveMap by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
@@ -238,6 +253,15 @@ fun DashboardScreen(onNavigateToForm: () -> Unit, onNavigateToRincian: () -> Uni
     LaunchedEffect(Unit) {
         try {
             listTransaksi = RetrofitClient.instance.getHistori()
+            val emitenUnik = listTransaksi.map { it.emiten.uppercase() }.distinct()
+            val mapBaru = mutableMapOf<String, Double>()
+            emitenUnik.forEach { emiten ->
+                val harga = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    StockPriceHelper.getHargaLive(emiten)
+                }
+                if (harga != null) mapBaru[emiten] = harga
+            }
+            hargaLiveMap = mapBaru
         } catch (e: Exception) {
             Toast.makeText(context, "Gagal mengambil histori: ${e.message}", Toast.LENGTH_SHORT)
                 .show()
@@ -259,32 +283,37 @@ fun DashboardScreen(onNavigateToForm: () -> Unit, onNavigateToRincian: () -> Uni
         },
         floatingActionButtonPosition = FabPosition.Center,
         bottomBar = {
-            BottomAppBar(
-                containerColor = nvBar,
-                contentColor = Color.White,
-                tonalElevation = 0.dp,
+            Box(
                 modifier = Modifier
                     .padding(start = 24.dp, end = 24.dp, bottom = 24.dp)
+                    .fillMaxWidth()
                     .height(65.dp)
                     .clip(RoundedCornerShape(30.dp))
+                    .background(nvBar)
             ) {
+
                 Row(
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .fillMaxSize()
                         .padding(horizontal = 32.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = {}) {
-                        Text("⌂", fontSize = 33.sp, color = Color(0xFF06B6D4))
+                        Icon(
+                            painter = painterResource(id = R.drawable.home),
+                            contentDescription = "Home",
+                            tint = Color(0xFF06B6D4),
+                            modifier = Modifier.size(25.dp)
+                        )
                     }
 
                     IconButton(onClick = onNavigateToRincian) {
-                        Text(
-                            "ılı",
-                            fontSize = 25.sp,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
+                        Icon(
+                            painter = painterResource(id = R.drawable.chartsvg),
+                            contentDescription = "Rincian",
+                            tint = Color.White,
+                            modifier = Modifier.size(25.dp)
                         )
                     }
                 }
@@ -318,7 +347,7 @@ fun DashboardScreen(onNavigateToForm: () -> Unit, onNavigateToRincian: () -> Uni
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "✎ edit nama",
+                        text = "edit nama",
                         color = TextGray,
                         fontSize = 10.sp
                     )
@@ -342,7 +371,10 @@ fun DashboardScreen(onNavigateToForm: () -> Unit, onNavigateToRincian: () -> Uni
             Spacer(modifier = Modifier.height(50.dp))
 
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                CustomDonutChart(listTransaksi = listTransaksi)
+                CustomDonutChart(
+                    listTransaksi = listTransaksi,
+                    hargaLiveMap = hargaLiveMap
+                )
             }
 
             Spacer(modifier = Modifier.height(40.dp))
@@ -411,31 +443,37 @@ fun RincianScreen(onNavigateToHome: () -> Unit, onNavigateToForm: () -> Unit) {
             }
         },
         bottomBar = {
-            BottomAppBar(
-                containerColor = nvBar,
-                contentColor = Color.White,
-                tonalElevation = 0.dp,
+            Box(
                 modifier = Modifier
                     .padding(start = 24.dp, end = 24.dp, bottom = 24.dp)
+                    .fillMaxWidth()
                     .height(65.dp)
                     .clip(RoundedCornerShape(30.dp))
+                    .background(nvBar)
             ) {
+
                 Row(
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .fillMaxSize()
                         .padding(horizontal = 32.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onNavigateToHome) {
-                        Text("⌂", fontSize = 33.sp, color = Color.White)
+                        Icon(
+                            painter = painterResource(id = R.drawable.home),
+                            contentDescription = "Home",
+                            tint = Color.White,
+                            modifier = Modifier.size(25.dp)
+                        )
                     }
+
                     IconButton(onClick = {}) {
-                        Text(
-                            "ılı",
-                            fontSize = 25.sp,
-                            color = Color(0xFF06B6D4),
-                            fontWeight = FontWeight.Bold
+                        Icon(
+                            painter = painterResource(id = R.drawable.chartsvg),
+                            contentDescription = "Rincian",
+                            tint = Color(0xFF06B6D4),
+                            modifier = Modifier.size(25.dp)
                         )
                     }
                 }
@@ -481,7 +519,23 @@ fun RincianScreen(onNavigateToHome: () -> Unit, onNavigateToForm: () -> Unit) {
 
 @Composable
 fun RincianCard(transaksi: Transaksi) {
-    val hargaFormatted = formatHarga(transaksi.harga)
+    var hargaLive by remember { mutableStateOf<Double?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    val hargaAvgFormatted = "Rp " + String.format("%,.2f", transaksi.harga).replace(',', '.')
+
+    LaunchedEffect(transaksi.emiten) {
+        try {
+            val harga = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                StockPriceHelper.getHargaLive(transaksi.emiten)
+            }
+            hargaLive = harga
+        } catch (e: Exception) {
+            android.util.Log.e("CEK_HARGA", "Gagal: ${e.message}")
+        } finally {
+            isLoading = false
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -522,42 +576,65 @@ fun RincianCard(transaksi: Transaksi) {
             }
         }
 
-        Spacer(modifier = Modifier.height(5.dp))
+        Spacer(modifier = Modifier.height(12.dp))
+        Divider(color = Color.DarkGray, thickness = 1.dp)
+        Spacer(modifier = Modifier.height(12.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Average:",
-                color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
+            Column {
+                Text(text = "Average Price", color = TextGray, fontSize = 12.sp)
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = hargaAvgFormatted,
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
 
-            Text(
-                text = hargaFormatted,
-                color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Column(horizontalAlignment = Alignment.End) {
+                Text(text = "Current Price", color = TextGray, fontSize = 12.sp)
+                Spacer(modifier = Modifier.height(2.dp))
+
+                if (isLoading) {
+                    Text(
+                        text = "Loading...",
+                        color = Color.LightGray,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                } else {
+                    if (hargaLive == null) {
+                        Text(
+                            text = "-",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    } else {
+                        val liveFormatted =
+                            "Rp " + String.format("%,.2f", hargaLive!!).replace(',', '.')
+
+                        val priceColor = when {
+                            hargaLive!! > transaksi.harga -> Color(0xFF4ADE80)
+                            hargaLive!! < transaksi.harga -> Color(0xFFEF4444)
+                            else -> Color.White
+                        }
+
+                        Text(
+                            text = liveFormatted,
+                            color = priceColor,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
         }
-    }
-}
-
-fun formatHarga(harga: Double): String {
-    val bagianBulat = harga.toLong()
-    val sisa = harga - bagianBulat
-    val bulatStr = String.format("%,d", bagianBulat).replace(',', '.')
-    return if (sisa == 0.0) {
-        "Rp $bulatStr"
-    } else {
-        val desimalStr = String.format("%.10f", sisa)
-            .removePrefix("0")
-            .trimEnd('0')
-            .replace(".", ",")
-        "Rp $bulatStr$desimalStr"
     }
 }
 
@@ -710,6 +787,7 @@ fun FormInvestasi(onBack: () -> Unit) {
 @Composable
 fun CustomDonutChart(
     listTransaksi: List<Transaksi>,
+    hargaLiveMap: Map<String, Double> = emptyMap(),
     modifier: Modifier = Modifier
 ) {
     val chartColors = List(50) { index ->
@@ -725,7 +803,8 @@ fun CustomDonutChart(
     listTransaksi.forEach { transaksi ->
         val key = transaksi.emiten.uppercase()
         val currentValue = emitenValueMap[key] ?: 0L
-        val nilaiRupiah = (transaksi.lot.toDouble() * 100.0 * transaksi.harga).toLong()
+        val hargaDigunakan = hargaLiveMap[key] ?: transaksi.harga
+        val nilaiRupiah = (transaksi.lot.toDouble() * 100.0 * hargaDigunakan).toLong()
         emitenValueMap[key] = currentValue + nilaiRupiah
     }
     val totalSemuaAset = emitenValueMap.values.sum()
