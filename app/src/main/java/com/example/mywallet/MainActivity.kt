@@ -9,6 +9,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -411,16 +412,30 @@ fun DashboardScreen(onNavigateToForm: () -> Unit, onNavigateToRincian: () -> Uni
                         onDelete = {
                             coroutineScope.launch {
                                 try {
-                                    RetrofitClient.instance.hapusInvestasi(DeleteData(transaksi.emiten))
-                                    listTransaksi = RetrofitClient.instance.getHistori()
+                                    val dataHapus = DeleteData(transaksi.emiten)
+
+                                    val response = RetrofitClient.instance.hapusInvestasi(dataHapus)
+
+                                    if (response.status == "success") {
+                                        listTransaksi = RetrofitClient.instance.getHistori()
+                                        Toast.makeText(
+                                            context,
+                                            "Investasi ${transaksi.emiten} berhasil dihapus",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    } else {
+                                        Toast.makeText(
+                                            context,
+                                            "Server Error: ${response.message}",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                } catch (e: Exception) {
                                     Toast.makeText(
                                         context,
-                                        "Investasi ${transaksi.emiten} dihapus",
+                                        "Error: ${e.localizedMessage}",
                                         Toast.LENGTH_SHORT
                                     ).show()
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "Gagal menghapus", Toast.LENGTH_SHORT)
-                                        .show()
                                 }
                             }
                         }
@@ -667,18 +682,11 @@ fun FormInvestasi(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(BgDark)
-            .padding(24.dp)
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(modifier = Modifier.height(40.dp))
-
-        IconButton(onClick = onBack) {
-            Text(
-                "←",
-                fontSize = 28.sp,
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-            )
-        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -694,6 +702,7 @@ fun FormInvestasi(onBack: () -> Unit) {
             onValueChange = { kodeEmiten = it },
             label = { Text("Kode Emiten", color = TextGray) },
             modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(15.dp),
             textStyle = TextStyle(
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
@@ -722,6 +731,7 @@ fun FormInvestasi(onBack: () -> Unit) {
             },
             label = { Text("Jumlah Lot", color = TextGray) },
             modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(15.dp),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             visualTransformation = NumberDotTransformation(),
             colors = OutlinedTextFieldDefaults.colors(
@@ -746,6 +756,7 @@ fun FormInvestasi(onBack: () -> Unit) {
             },
             label = { Text("Harga per Lembar", color = TextGray) },
             modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(15.dp),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = Color.White, unfocusedTextColor = Color.White,
@@ -793,9 +804,27 @@ fun FormInvestasi(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
+            shape = RoundedCornerShape(25.dp),
             colors = ButtonDefaults.buttonColors(containerColor = RingColor)
         ) {
             Text("Simpan Investasi", color = Color.White, fontSize = 16.sp)
+        }
+
+        Spacer(modifier = Modifier.height(15.dp))
+
+        OutlinedButton(
+            onClick = onBack,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
+            shape = RoundedCornerShape(25.dp),
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = Color.Transparent,
+                contentColor = RingColor
+            ),
+            border = BorderStroke(1.dp, RingColor)
+        ) {
+            Text("Back", fontSize = 16.sp)
         }
     }
 }
@@ -987,9 +1016,11 @@ fun InvestmentCard(kodeEmiten: String, tanggal: String, jumlahLot: Int) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SwipeableInvestmentCard(transaksi: Transaksi, onDelete: () -> Unit) {
+    var sudahHapus by remember { mutableStateOf(false) }
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = {
-            if (it == SwipeToDismissBoxValue.EndToStart) {
+            if (it == SwipeToDismissBoxValue.EndToStart && !sudahHapus) {
+                sudahHapus = true
                 onDelete()
                 true
             } else false
