@@ -67,7 +67,7 @@ import androidx.compose.material3.Icon
 import kotlinx.coroutines.withContext
 
 data class InvestasiData(val kode_emiten: String, val jumlah_lot: Int, val harga_beli: Double)
-data class DeleteData(val id: Int)
+data class DeleteData(val emiten: String)
 data class ApiResponse(val status: String, val message: String)
 data class Transaksi(
     val id: Int,
@@ -183,6 +183,19 @@ fun DashboardScreen(onNavigateToForm: () -> Unit, onNavigateToRincian: () -> Uni
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+    val groupedTransactions by remember(listTransaksi) {
+        derivedStateOf {
+            listTransaksi.groupBy { it.emiten.uppercase() }
+                .map { (emiten, transactions) ->
+                    val totalLot = transactions.sumOf { it.lot }
+
+                    transactions.first().copy(
+                        emiten = emiten,
+                        lot = totalLot
+                    )
+                }
+        }
+    }
 
     var profileImagePath by remember {
         val saved = prefs.getString("profile_path", null)
@@ -392,16 +405,19 @@ fun DashboardScreen(onNavigateToForm: () -> Unit, onNavigateToRincian: () -> Uni
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = 100.dp)
             ) {
-                items(listTransaksi, key = { it.id }) { transaksi ->
+                items(groupedTransactions, key = { it.emiten }) { transaksi ->
                     SwipeableInvestmentCard(
                         transaksi = transaksi,
                         onDelete = {
                             coroutineScope.launch {
                                 try {
-                                    RetrofitClient.instance.hapusInvestasi(DeleteData(transaksi.id))
+                                    RetrofitClient.instance.hapusInvestasi(DeleteData(transaksi.emiten))
                                     listTransaksi = RetrofitClient.instance.getHistori()
-                                    Toast.makeText(context, "Investasi Dihapus", Toast.LENGTH_SHORT)
-                                        .show()
+                                    Toast.makeText(
+                                        context,
+                                        "Investasi ${transaksi.emiten} dihapus",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 } catch (e: Exception) {
                                     Toast.makeText(context, "Gagal menghapus", Toast.LENGTH_SHORT)
                                         .show()
@@ -660,7 +676,7 @@ fun FormInvestasi(onBack: () -> Unit) {
                 "←",
                 fontSize = 28.sp,
                 color = Color.White,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
         }
 
