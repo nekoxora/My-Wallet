@@ -66,6 +66,9 @@ import retrofit2.http.Query
 import androidx.compose.runtime.Composable
 import androidx.compose.material3.Icon
 import com.example.mywallet.ui.theme.Purple40
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 
 data class InvestasiData(val kode_emiten: String, val jumlah_lot: Int, val harga_beli: Double)
@@ -84,6 +87,14 @@ data class HargaLiveResponse(
     val emiten: String?,
     val harga_live: Double?,
     val message: String?
+)
+
+data class BeritaSaham(
+    val id: Int,
+    val judul: String,
+    val isi: String,
+    val emiten: String,
+    val tgl: String
 )
 
 interface ApiService {
@@ -133,7 +144,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-enum class Layar { DASHBOARD, FORM, RINCIAN }
+enum class Layar { DASHBOARD, FORM, RINCIAN, NOTIFIKASI }
 
 @Composable
 fun MainApp() {
@@ -146,7 +157,8 @@ fun MainApp() {
                 layarSebelumnya = Layar.DASHBOARD
                 layarAktif = Layar.FORM
             },
-            onNavigateToRincian = { layarAktif = Layar.RINCIAN }
+            onNavigateToRincian = { layarAktif = Layar.RINCIAN },
+            onNavigateToNotifikasi = { layarAktif = Layar.NOTIFIKASI }
         )
 
         Layar.FORM -> FormInvestasi(
@@ -160,6 +172,44 @@ fun MainApp() {
                 layarAktif = Layar.FORM
             }
         )
+
+        Layar.NOTIFIKASI -> NotifikasiScreen(onBack = { layarAktif = Layar.DASHBOARD })
+    }
+}
+
+@Composable
+fun NotifikasiScreen(onBack: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BgDark)
+            .padding(24.dp)
+    ) {
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.weight(1f)
+        ) {
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedButton(
+            onClick = onBack,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
+            shape = RoundedCornerShape(25.dp),
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = Color.Transparent,
+                contentColor = RingColor
+            ),
+            border = BorderStroke(1.dp, RingColor)
+        ) {
+            Text("Back", fontSize = 16.sp)
+        }
     }
 }
 
@@ -179,9 +229,14 @@ fun saveImageToInternalStorage(context: android.content.Context, uri: android.ne
 }
 
 @Composable
-fun IconNotification(hasNotification: Boolean) {
+fun IconNotification(
+    hasNotification: Boolean,
+    onClick: () -> Unit
+) {
     Box(
-        modifier = Modifier.size(32.dp),
+        modifier = Modifier
+            .size(32.dp)
+            .clickable { onClick() },
         contentAlignment = Alignment.TopEnd
     ) {
         Icon(
@@ -206,7 +261,11 @@ fun IconNotification(hasNotification: Boolean) {
 }
 
 @Composable
-fun DashboardScreen(onNavigateToForm: () -> Unit, onNavigateToRincian: () -> Unit) {
+fun DashboardScreen(
+    onNavigateToForm: () -> Unit,
+    onNavigateToRincian: () -> Unit,
+    onNavigateToNotifikasi: () -> Unit
+) {
     var listTransaksi by remember { mutableStateOf<List<Transaksi>>(emptyList()) }
     var hargaLiveMap by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
     val coroutineScope = rememberCoroutineScope()
@@ -305,17 +364,21 @@ fun DashboardScreen(onNavigateToForm: () -> Unit, onNavigateToRincian: () -> Uni
         try {
             listTransaksi = RetrofitClient.instance.getHistori()
             val emitenUnik = listTransaksi.map { it.emiten.uppercase() }.distinct()
-            val mapBaru = mutableMapOf<String, Double>()
-            emitenUnik.forEach { emiten ->
-                val harga = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    StockPriceHelper.getHargaLive(emiten)
-                }
-                if (harga != null) mapBaru[emiten] = harga
+
+            val mapBaru = coroutineScope {
+                emitenUnik.map { emiten ->
+                    async {
+                        val harga = StockPriceHelper.getHargaLive(emiten)
+                        harga to emiten
+                    }
+                }.awaitAll()
+                    .filter { it.first != null }
+                    .associate { it.second to it.first!! }
             }
+
             hargaLiveMap = mapBaru
         } catch (e: Exception) {
-            Toast.makeText(context, "Gagal mengambil histori: ${e.message}", Toast.LENGTH_SHORT)
-                .show()
+            Toast.makeText(context, "Gagal mengambil data: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -417,7 +480,13 @@ fun DashboardScreen(onNavigateToForm: () -> Unit, onNavigateToRincian: () -> Uni
                     }
                 }
 
-                IconNotification(hasNotification = true)
+                IconNotification(
+                    hasNotification = adaNotif,
+                    onClick = {
+                        adaNotif = false
+                        onNavigateToNotifikasi()
+                    }
+                )
             }
 
             Spacer(modifier = Modifier.height(50.dp))
