@@ -65,6 +65,7 @@ import androidx.compose.ui.text.style.TextAlign
 import retrofit2.http.Query
 import androidx.compose.runtime.Composable
 import androidx.compose.material3.Icon
+import com.example.mywallet.ui.theme.Purple40
 import kotlinx.coroutines.withContext
 
 data class InvestasiData(val kode_emiten: String, val jumlah_lot: Int, val harga_beli: Double)
@@ -178,6 +179,33 @@ fun saveImageToInternalStorage(context: android.content.Context, uri: android.ne
 }
 
 @Composable
+fun IconNotification(hasNotification: Boolean) {
+    Box(
+        modifier = Modifier.size(32.dp),
+        contentAlignment = Alignment.TopEnd
+    ) {
+        Icon(
+            painter = painterResource(id = R.drawable.bell),
+            contentDescription = "Notifications",
+            tint = Color.White,
+            modifier = Modifier
+                .size(24.dp)
+                .align(Alignment.Center)
+        )
+
+        if (hasNotification) {
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .background(Color.Red)
+                    .border(2.dp, BgDark, CircleShape)
+            )
+        }
+    }
+}
+
+@Composable
 fun DashboardScreen(onNavigateToForm: () -> Unit, onNavigateToRincian: () -> Unit) {
     var listTransaksi by remember { mutableStateOf<List<Transaksi>>(emptyList()) }
     var hargaLiveMap by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
@@ -197,6 +225,7 @@ fun DashboardScreen(onNavigateToForm: () -> Unit, onNavigateToRincian: () -> Uni
                 }
         }
     }
+    var adaNotif by remember { mutableStateOf(false) }
 
     var profileImagePath by remember {
         val saved = prefs.getString("profile_path", null)
@@ -226,7 +255,14 @@ fun DashboardScreen(onNavigateToForm: () -> Unit, onNavigateToRincian: () -> Uni
             onDismissRequest = { showEditNama = false },
             containerColor = CardDark,
             title = {
-                Text("Ubah Nama", color = Color.White, fontWeight = FontWeight.Bold)
+                Text(
+                    "Ubah Nama",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
             },
             text = {
                 OutlinedTextField(
@@ -242,7 +278,8 @@ fun DashboardScreen(onNavigateToForm: () -> Unit, onNavigateToRincian: () -> Uni
                         focusedLabelColor = RingColor,
                         unfocusedLabelColor = TextGray,
                         cursorColor = Color.White
-                    )
+                    ),
+                    shape = RoundedCornerShape(15.dp),
                 )
             },
             confirmButton = {
@@ -347,39 +384,40 @@ fun DashboardScreen(onNavigateToForm: () -> Unit, onNavigateToRincian: () -> Uni
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column(
-                    modifier = Modifier.clickable {
-                        inputNama = namaUser
-                        showEditNama = true
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Image(
+                        painter = if (profileImagePath != null)
+                            rememberAsyncImagePainter(java.io.File(profileImagePath!!))
+                        else
+                            painterResource(id = R.drawable.profile),
+                        contentDescription = "Profile Photo",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, color = Purple40, CircleShape)
+                            .clickable { galleryLauncher.launch("image/*") }
+                    )
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column(
+                        modifier = Modifier.clickable {
+                            inputNama = namaUser
+                            showEditNama = true
+                        }
+                    ) {
+                        Text(text = "Welcome back!", color = TextGray, fontSize = 13.sp)
+                        Text(
+                            text = namaUser,
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
-                ) {
-                    Text(text = "Welcome back!", color = TextGray, fontSize = 14.sp)
-                    Text(
-                        text = namaUser,
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "edit nama",
-                        color = TextGray,
-                        fontSize = 10.sp
-                    )
                 }
 
-                Image(
-                    painter = if (profileImagePath != null)
-                        rememberAsyncImagePainter(java.io.File(profileImagePath!!))
-                    else
-                        painterResource(id = R.drawable.profile),
-                    contentDescription = "Profile Photo",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .border(2.dp, Color.White, CircleShape)
-                        .clickable { galleryLauncher.launch("image/*") }
-                )
+                IconNotification(hasNotification = true)
             }
 
             Spacer(modifier = Modifier.height(50.dp))
