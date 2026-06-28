@@ -25,8 +25,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.mywallet.data.Transaksi
-import kotlin.collections.forEach
-import kotlin.collections.get
 
 @Composable
 fun CustomDonutChart(

@@ -53,6 +53,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
+import com.example.mywallet.NotificationHelper
 import com.example.mywallet.R
 import com.example.mywallet.StockPriceHelper
 import com.example.mywallet.data.DeleteData
@@ -230,7 +231,20 @@ fun DashboardScreen(
                 if (beritaResponse.status == "success") {
                     val totalBerita = beritaResponse.total
                     val sudahDibaca = prefs.getInt("notif_dibaca", 0)
-                    jumlahNotif = (totalBerita - sudahDibaca).coerceAtLeast(0)
+                    val belumDibaca = (totalBerita - sudahDibaca).coerceAtLeast(0)
+                    jumlahNotif = belumDibaca
+
+                    if (belumDibaca > 0) {
+                        val beritaBaru = beritaResponse.data.take(belumDibaca)
+                        beritaBaru.forEachIndexed { index, berita ->
+                            NotificationHelper.sendBeritaNotif(
+                                context = context,
+                                notifId = 1000 + index,
+                                emiten = berita.emiten,
+                                judul = berita.judul
+                            )
+                        }
+                    }
                 }
             } catch (_: Exception) {
             }

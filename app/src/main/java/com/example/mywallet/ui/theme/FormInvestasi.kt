@@ -36,7 +36,6 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.mywallet.ui.theme.NumberDotTransformation
 import com.example.mywallet.data.InvestasiData
 import com.example.mywallet.data.RetrofitClient
 import kotlinx.coroutines.launch

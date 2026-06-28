@@ -5,10 +5,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import com.example.mywallet.ui.theme.DashboardScreen
-import com.example.mywallet.ui.theme.FormInvestasi
-import com.example.mywallet.ui.theme.NotifikasiScreen
-import com.example.mywallet.ui.theme.RincianScreen
 
 enum class Layar { DASHBOARD, FORM, RINCIAN, NOTIFIKASI }
 
