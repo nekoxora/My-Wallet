@@ -23,7 +23,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.mywallet.StockPriceHelper
 import com.example.mywallet.data.BeritaSaham
 import com.example.mywallet.data.RetrofitClient
 
@@ -50,46 +50,43 @@ fun NotifikasiScreen(onBack: () -> Unit) {
     var isLoading by remember { mutableStateOf(true) }
     val context = LocalContext.current
 
-    val sumberBerita = listOf(
-        BeritaSaham(
-            1,
-            "Lorem ipsum",
-            "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-            "OASA",
-            "2026-06-27",
-            999,
-            "+50%",
-            "https://finance.yahoo.com/quote/OASA.JK/"
-        ),
-        BeritaSaham(
-            2,
-            "Volume Produksi Meningkat",
-            "Laporan terbaru menunjukkan peningkatan kapasitas operasional yang berdampak positif pada pergerakan saham hari ini.",
-            "BRMS",
-            "2026-06-26",
-            185,
-            "+15%",
-            "https://finance.yahoo.com/quote/BRMS.JK/"
-        ),
-        BeritaSaham(
-            3,
-            "Harga Komoditas Dukung Margin",
-            "Sektor energi mendapat sentimen positif dari pergerakan harga komoditas global.",
-            "BUMI",
-            "2026-06-26",
-            120,
-            "-5%",
-            "https://finance.yahoo.com/quote/BUMI.JK/"
-        )
-    )
-
     LaunchedEffect(Unit) {
         try {
-            val histori = RetrofitClient.instance.getHistori()
-            val emitenUnik = histori.map { it.emiten.uppercase() }.distinct()
-            beritaTampil = sumberBerita.filter { emitenUnik.contains(it.emiten.uppercase()) }
+            isLoading = true
+
+            val response = RetrofitClient.instance.getBerita()
+
+            if (response.status == "success") {
+
+                val listDenganHarga = response.data.map { berita ->
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        try {
+                            val symbol = when (berita.emiten.uppercase()) {
+                                "IHSG" -> "^JKSE"
+                                else -> "${berita.emiten.uppercase()}.JK"
+                            }
+
+                            val hargaLive = StockPriceHelper.getHargaLive(symbol)
+                            val persentaseLive = StockPriceHelper.getPersentaseLive(symbol)
+
+                            berita.copy(
+                                harga = hargaLive?.toInt() ?: 0,
+                                persentase = persentaseLive ?: "-"
+                            )
+                        } catch (e: Exception) {
+                            berita
+                        }
+                    }
+                }
+
+                beritaTampil = listDenganHarga
+
+            } else {
+                beritaTampil = emptyList()
+            }
+
         } catch (e: Exception) {
-            beritaTampil = sumberBerita
+            beritaTampil = emptyList()
         } finally {
             isLoading = false
         }
@@ -104,8 +101,19 @@ fun NotifikasiScreen(onBack: () -> Unit) {
     ) {
 
         if (isLoading) {
-            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = RingColor)
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                items(3) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(150.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(CardDark)
+                    )
+                }
             }
         } else {
             LazyColumn(
@@ -139,6 +147,7 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                             }
                     ) {
                         Column(modifier = Modifier.padding(20.dp)) {
+
                             Text(
                                 text = berita.judul,
                                 color = Color.White,
@@ -148,12 +157,15 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                             Spacer(modifier = Modifier.height(6.dp))
 
                             val isiDipotong = berita.isi.let { teks ->
-                                val paragraf = teks.split("\n").filter { it.isNotBlank() }
+                                val teksBersih = teks.replace(Regex("<[^>]*>"), "")
+                                val paragraf = teksBersih.split("\n").filter { it.isNotBlank() }
                                 val duaParagraf = paragraf.take(2).joinToString("\n\n")
-                                if (duaParagraf.length > 100) duaParagraf.take(100)
-                                    .trim() + "..." else if (paragraf.size > 2) duaParagraf + "..." else duaParagraf
+                                when {
+                                    duaParagraf.length > 100 -> duaParagraf.take(100).trim() + "..."
+                                    paragraf.size > 2 -> "$duaParagraf..."
+                                    else -> duaParagraf
+                                }
                             }
-
                             Text(
                                 text = isiDipotong,
                                 color = TextGray,
@@ -179,34 +191,40 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = "Price : ${berita.harga}",
-                                        color = TextGray,
-                                        fontSize = 14.sp
-                                    )
-                                    Spacer(modifier = Modifier.width(10.dp))
 
-                                    val isPositif = berita.persentase.startsWith("+")
-                                    Box(
-                                        modifier = Modifier
-                                            .width(65.dp)
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(
-                                                if (isPositif) Color(0xFF4ADE80) else Color(
-                                                    0xFFEF4444
-                                                )
-                                            )
-                                            .padding(vertical = 4.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
+                                    if (berita.harga > 0) {
                                         Text(
-                                            text = berita.persentase,
-                                            color = if (isPositif) Color(0xFF064E3B) else Color.White,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold
+                                            text = "Price : ${berita.harga}",
+                                            color = TextGray,
+                                            fontSize = 14.sp
                                         )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                    }
+
+                                    if (berita.persentase != "-" && berita.persentase.isNotEmpty()) {
+                                        val isPositif = berita.persentase.startsWith("+")
+                                        Box(
+                                            modifier = Modifier
+                                                .width(65.dp)
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(
+                                                    if (isPositif) Color(0xFF4ADE80)
+                                                    else Color(0xFFEF4444)
+                                                )
+                                                .padding(vertical = 4.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = berita.persentase,
+                                                color = if (isPositif) Color(0xFF064E3B)
+                                                else Color.White,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
                                     }
                                 }
+
                                 Text(text = berita.tgl, color = TextGray, fontSize = 14.sp)
                             }
                         }
@@ -216,6 +234,7 @@ fun NotifikasiScreen(onBack: () -> Unit) {
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+
         OutlinedButton(
             onClick = onBack,
             modifier = Modifier

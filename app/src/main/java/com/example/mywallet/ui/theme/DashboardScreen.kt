@@ -53,10 +53,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
-import com.example.mywallet.ui.theme.CustomDonutChart
 import com.example.mywallet.R
 import com.example.mywallet.StockPriceHelper
-import com.example.mywallet.ui.theme.SwipeableInvestmentCard
 import com.example.mywallet.data.DeleteData
 import com.example.mywallet.data.RetrofitClient
 import com.example.mywallet.data.Transaksi
@@ -65,37 +63,47 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import kotlin.collections.component1
-import kotlin.collections.component2
 
 @Composable
 fun IconNotification(
-    hasNotification: Boolean,
+    jumlahNotif: Int,
     onClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
-            .size(32.dp)
+            .size(36.dp)
             .clickable { onClick() },
-        contentAlignment = Alignment.TopEnd
+        contentAlignment = Alignment.Center
     ) {
         Icon(
             painter = painterResource(id = R.drawable.bell),
             contentDescription = "Notifications",
             tint = Color.White,
-            modifier = Modifier
-                .size(24.dp)
-                .align(Alignment.Center)
+            modifier = Modifier.size(24.dp)
         )
 
-        if (hasNotification) {
+        if (jumlahNotif > 0) {
+            val badgeText = if (jumlahNotif > 99) "99+" else jumlahNotif.toString()
+            val badgeWidth = if (jumlahNotif > 99) 30.dp else if (jumlahNotif > 9) 20.dp else 16.dp
+
             Box(
                 modifier = Modifier
-                    .size(10.dp)
-                    .clip(CircleShape)
+                    .size(width = badgeWidth, height = 16.dp)
+                    .align(Alignment.TopEnd)
+                    .offset(x = 4.dp, y = (-2).dp)
+                    .clip(RoundedCornerShape(8.dp))
                     .background(Color.Red)
-                    .border(2.dp, BgDark, CircleShape)
-            )
+                    .border(1.dp, BgDark, RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = badgeText,
+                    color = Color.White,
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Bold,
+                    lineHeight = 8.sp
+                )
+            }
         }
     }
 }
@@ -116,7 +124,6 @@ fun DashboardScreen(
             listTransaksi.groupBy { it.emiten.uppercase() }
                 .map { (emiten, transactions) ->
                     val totalLot = transactions.sumOf { it.lot }
-
                     transactions.first().copy(
                         emiten = emiten,
                         lot = totalLot
@@ -124,7 +131,8 @@ fun DashboardScreen(
                 }
         }
     }
-    var adaNotif by remember { mutableStateOf(false) }
+
+    var jumlahNotif by remember { mutableStateOf(0) }
 
     var profileImagePath by remember {
         val saved = prefs.getString("profile_path", null)
@@ -205,30 +213,10 @@ fun DashboardScreen(
             listTransaksi = RetrofitClient.instance.getHistori()
             val emitenUnik = listTransaksi.map { it.emiten.uppercase() }.distinct()
 
-            var triggerNotif = false
-
             val mapBaru = coroutineScope {
                 emitenUnik.map { emiten ->
                     async {
-                        val harga = StockPriceHelper.getHargaLive(emiten)
-
-                        if (harga != null) {
-                            val transaksiEmitenIni =
-                                listTransaksi.filter { it.emiten.uppercase() == emiten }
-                            val totalModal = transaksiEmitenIni.sumOf { it.harga * it.lot }
-                            val totalLot = transaksiEmitenIni.sumOf { it.lot }
-
-                            if (totalLot > 0) {
-                                val avgHarga = totalModal / totalLot
-                                val persentase = (harga / avgHarga) * 100
-
-                                if (persentase >= 115.0 || persentase <= 85.0) {
-                                    triggerNotif = true
-                                }
-                            }
-                        }
-
-                        harga to emiten
+                        StockPriceHelper.getHargaLive(emiten) to emiten
                     }
                 }.awaitAll()
                     .filter { it.first != null }
@@ -236,7 +224,16 @@ fun DashboardScreen(
             }
 
             hargaLiveMap = mapBaru
-            adaNotif = triggerNotif
+
+            try {
+                val beritaResponse = RetrofitClient.instance.getBerita()
+                if (beritaResponse.status == "success") {
+                    val totalBerita = beritaResponse.total
+                    val sudahDibaca = prefs.getInt("notif_dibaca", 0)
+                    jumlahNotif = (totalBerita - sudahDibaca).coerceAtLeast(0)
+                }
+            } catch (_: Exception) {
+            }
 
         } catch (e: Exception) {
             Toast.makeText(context, "Gagal mengambil data: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -266,7 +263,6 @@ fun DashboardScreen(
                     .clip(RoundedCornerShape(30.dp))
                     .background(nvBar)
             ) {
-
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
@@ -282,7 +278,6 @@ fun DashboardScreen(
                             modifier = Modifier.size(25.dp)
                         )
                     }
-
                     IconButton(onClick = onNavigateToRincian) {
                         Icon(
                             painter = painterResource(id = R.drawable.chartsvg),
@@ -342,9 +337,18 @@ fun DashboardScreen(
                 }
 
                 IconNotification(
-                    hasNotification = adaNotif,
+                    jumlahNotif = jumlahNotif,
                     onClick = {
-                        adaNotif = false
+                        try {
+                            val beritaResponse = kotlinx.coroutines.runBlocking {
+                                RetrofitClient.instance.getBerita()
+                            }
+                            if (beritaResponse.status == "success") {
+                                prefs.edit().putInt("notif_dibaca", beritaResponse.total).apply()
+                            }
+                        } catch (_: Exception) {
+                        }
+                        jumlahNotif = 0
                         onNavigateToNotifikasi()
                     }
                 )
@@ -381,9 +385,7 @@ fun DashboardScreen(
                             coroutineScope.launch {
                                 try {
                                     val dataHapus = DeleteData(transaksi.emiten)
-
                                     val response = RetrofitClient.instance.hapusInvestasi(dataHapus)
-
                                     if (response.status == "success") {
                                         listTransaksi = RetrofitClient.instance.getHistori()
                                         Toast.makeText(

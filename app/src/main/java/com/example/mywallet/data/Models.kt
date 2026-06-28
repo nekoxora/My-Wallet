@@ -12,12 +12,18 @@ data class Transaksi(
 )
 
 data class BeritaSaham(
-    val id: Int,
+    val id: String,
     val judul: String,
     val isi: String,
     val emiten: String,
     val tgl: String,
     val harga: Int = 0,
-    val persentase: String = "",
-    val url: String = ""
+    val persentase: String = "-",
+    val url: String
+)
+
+data class BeritaResponse(
+    val status: String,
+    val total: Int,
+    val data: List<BeritaSaham>
 )

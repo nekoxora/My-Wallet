@@ -15,6 +15,9 @@ interface ApiService {
 
     @GET("api_keuangan/get_histori.php")
     suspend fun getHistori(): List<Transaksi>
+
+    @GET("api_keuangan/get_berita_rss.php")
+    suspend fun getBerita(): BeritaResponse
 }
 
 object RetrofitClient {
