@@ -48,16 +48,20 @@ import com.example.mywallet.data.RetrofitClient
 fun NotifikasiScreen(onBack: () -> Unit) {
     var beritaTampil by remember { mutableStateOf<List<BeritaSaham>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var isCleared by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(isCleared) {
+        if (isCleared) {
+            isLoading = false
+            return@LaunchedEffect
+        }
+
         try {
             isLoading = true
-
             val response = RetrofitClient.instance.getBerita()
 
             if (response.status == "success") {
-
                 val listDenganHarga = response.data.map { berita ->
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                         try {
@@ -65,10 +69,8 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                                 "IHSG" -> "^JKSE"
                                 else -> "${berita.emiten.uppercase()}.JK"
                             }
-
                             val hargaLive = StockPriceHelper.getHargaLive(symbol)
                             val persentaseLive = StockPriceHelper.getPersentaseLive(symbol)
-
                             berita.copy(
                                 harga = hargaLive?.toInt() ?: 0,
                                 persentase = persentaseLive ?: "-"
@@ -78,13 +80,10 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                         }
                     }
                 }
-
                 beritaTampil = listDenganHarga
-
             } else {
                 beritaTampil = emptyList()
             }
-
         } catch (e: Exception) {
             beritaTampil = emptyList()
         } finally {
@@ -191,7 +190,6 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-
                                     if (berita.harga > 0) {
                                         Text(
                                             text = "Price : ${berita.harga}",
@@ -200,7 +198,6 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                                         )
                                         Spacer(modifier = Modifier.width(10.dp))
                                     }
-
                                     if (berita.persentase != "-" && berita.persentase.isNotEmpty()) {
                                         val isPositif = berita.persentase.startsWith("+")
                                         Box(
@@ -224,7 +221,6 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                                         }
                                     }
                                 }
-
                                 Text(text = berita.tgl, color = TextGray, fontSize = 14.sp)
                             }
                         }
@@ -235,19 +231,42 @@ fun NotifikasiScreen(onBack: () -> Unit) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        OutlinedButton(
-            onClick = onBack,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            shape = RoundedCornerShape(25.dp),
-            colors = ButtonDefaults.outlinedButtonColors(
-                containerColor = Color.Transparent,
-                contentColor = RingColor
-            ),
-            border = BorderStroke(1.dp, RingColor)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Back", fontSize = 16.sp)
+            OutlinedButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(50.dp),
+                shape = RoundedCornerShape(25.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = Color.Transparent,
+                    contentColor = RingColor
+                ),
+                border = BorderStroke(1.dp, RingColor)
+            ) {
+                Text("Back", fontSize = 16.sp)
+            }
+
+            OutlinedButton(
+                onClick = {
+                    beritaTampil = emptyList()
+                    isCleared = true
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(50.dp),
+                shape = RoundedCornerShape(25.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = Color.Transparent,
+                    contentColor = Color(0xFFEF4444)
+                ),
+                border = BorderStroke(1.dp, Color(0xFFEF4444))
+            ) {
+                Text("Clear All", fontSize = 16.sp)
+            }
         }
     }
 }
