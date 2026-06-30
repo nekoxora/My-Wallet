@@ -40,6 +40,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.mywallet.BeritaFilterHelper
+import com.example.mywallet.DeviceIdHelper
 import com.example.mywallet.StockPriceHelper
 import com.example.mywallet.data.BeritaSaham
 import com.example.mywallet.data.RetrofitClient
@@ -72,14 +74,23 @@ fun NotifikasiScreen(onBack: () -> Unit) {
 
     LaunchedEffect(Unit) {
         android.util.Log.d("NOTIF_DEBUG", "LaunchedEffect jalan")
-        
+
         try {
             isLoading = true
+            val deviceId = DeviceIdHelper.getDeviceId(context)
+            val historiResponse = RetrofitClient.instance.getHistori(deviceId)
+            val userEmitens = historiResponse.map { it.emiten.uppercase().trim() }.toSet()
+
             val response = RetrofitClient.instance.getBerita()
 
             if (response.status == "success") {
-                val listFiltered = response.data.filter { it.id !in clearedBeritaIds }
-                
+                val listFiltered = response.data.filter {
+                    it.id !in clearedBeritaIds && BeritaFilterHelper.isBeritaRelevant(
+                        it,
+                        userEmitens
+                    )
+                }
+
                 val listDenganHarga = listFiltered.map { berita ->
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                         try {
@@ -279,11 +290,12 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                 onClick = {
                     android.util.Log.d("NOTIF_DEBUG", "Clear All DIKLIK")
                     val currentIds = beritaTampil.map { it.id }.toSet()
-                    val newClearedIds = (prefs.getStringSet("cleared_berita_ids", emptySet()) ?: emptySet()) + currentIds
-                    
+                    val newClearedIds = (prefs.getStringSet("cleared_berita_ids", emptySet())
+                        ?: emptySet()) + currentIds
+
                     prefs.edit().putStringSet("cleared_berita_ids", newClearedIds).apply()
                     beritaTampil = emptyList()
-                    
+
                     android.util.Log.d("NOTIF_DEBUG", "Updated cleared_berita_ids: $newClearedIds")
                 },
                 modifier = Modifier

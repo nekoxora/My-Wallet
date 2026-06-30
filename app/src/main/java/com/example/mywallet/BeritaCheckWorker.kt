@@ -17,13 +17,19 @@ class BeritaCheckWorker(
             val beritaResponse = RetrofitClient.instance.getBerita()
 
             if (beritaResponse.status == "success") {
+                val deviceId = DeviceIdHelper.getDeviceId(context)
+                val historiResponse = RetrofitClient.instance.getHistori(deviceId)
+                val userEmitens = historiResponse.map { it.emiten.uppercase().trim() }.toSet()
+
                 val idTerkirimSebelumnya =
                     prefs.getStringSet("notif_id_terkirim", emptySet()) ?: emptySet()
                 val idCleared =
                     prefs.getStringSet("cleared_berita_ids", emptySet()) ?: emptySet()
-                
-                val beritaBaru = beritaResponse.data.filter { 
-                    it.id !in idTerkirimSebelumnya && it.id !in idCleared 
+
+                val beritaBaru = beritaResponse.data.filter {
+                    it.id !in idTerkirimSebelumnya &&
+                            it.id !in idCleared &&
+                            BeritaFilterHelper.isBeritaRelevant(it, userEmitens)
                 }
 
                 if (beritaBaru.isNotEmpty()) {
@@ -31,7 +37,6 @@ class BeritaCheckWorker(
                         NotificationHelper.sendBeritaNotif(
                             context = context,
                             notifId = berita.id.hashCode(),
-                            beritaId = berita.id,
                             emiten = berita.emiten,
                             judul = berita.judul
                         )
