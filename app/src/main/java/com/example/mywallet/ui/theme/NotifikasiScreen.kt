@@ -44,15 +44,34 @@ import com.example.mywallet.StockPriceHelper
 import com.example.mywallet.data.BeritaSaham
 import com.example.mywallet.data.RetrofitClient
 
+fun toYahooSymbol(emiten: String): String {
+    return when (emiten.uppercase().trim()) {
+        "IHSG" -> "^JKSE"
+        "GOLD" -> ""
+        "WTI OIL" -> "CL=F"
+        "COAL" -> ""
+        "USD/IDR" -> ""
+        "DJIA" -> "^DJI"
+        "NASDAQ" -> "^IXIC"
+        "S&P500" -> "^GSPC"
+        "BI RATE" -> ""
+        "BIG CAPS" -> ""
+        else -> "${emiten.uppercase().trim()}.JK"
+    }
+}
+
 @Composable
 fun NotifikasiScreen(onBack: () -> Unit) {
     var beritaTampil by remember { mutableStateOf<List<BeritaSaham>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
-    var isCleared by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
 
-    LaunchedEffect(isCleared) {
+    val isCleared = prefs.getBoolean("berita_cleared", false)
+
+    LaunchedEffect(Unit) {
         if (isCleared) {
+            beritaTampil = emptyList()
             isLoading = false
             return@LaunchedEffect
         }
@@ -65,12 +84,19 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                 val listDenganHarga = response.data.map { berita ->
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                         try {
-                            val symbol = when (berita.emiten.uppercase()) {
-                                "IHSG" -> "^JKSE"
-                                else -> "${berita.emiten.uppercase()}.JK"
+                            val symbol = toYahooSymbol(berita.emiten)
+
+                            if (symbol.isEmpty()) {
+                                return@withContext berita
                             }
-                            val hargaLive = StockPriceHelper.getHargaLive(symbol)
+
+                            var hargaLive = StockPriceHelper.getHargaLive(symbol)
                             val persentaseLive = StockPriceHelper.getPersentaseLive(symbol)
+
+                            if (hargaLive != null && hargaLive < 1.0) {
+                                hargaLive = 1.0 / hargaLive
+                            }
+
                             berita.copy(
                                 harga = hargaLive?.toInt() ?: 0,
                                 persentase = persentaseLive ?: "-"
@@ -253,7 +279,7 @@ fun NotifikasiScreen(onBack: () -> Unit) {
             OutlinedButton(
                 onClick = {
                     beritaTampil = emptyList()
-                    isCleared = true
+                    prefs.edit().putBoolean("berita_cleared", true).apply()
                 },
                 modifier = Modifier
                     .weight(1f)

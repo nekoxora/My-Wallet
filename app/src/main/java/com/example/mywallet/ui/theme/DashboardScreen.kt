@@ -358,7 +358,10 @@ fun DashboardScreen(
                                 RetrofitClient.instance.getBerita()
                             }
                             if (beritaResponse.status == "success") {
-                                prefs.edit().putInt("notif_dibaca", beritaResponse.total).apply()
+                                prefs.edit()
+                                    .putInt("notif_dibaca", beritaResponse.total)
+                                    .putBoolean("berita_cleared", false)
+                                    .apply()
                             }
                         } catch (_: Exception) {
                         }

@@ -33,10 +33,12 @@ object StockPriceHelper {
     }
 
     suspend fun getHargaLive(emiten: String): Double? {
-        val symbol = if (emiten.startsWith("^") || emiten.endsWith(".JK")) {
-            emiten
-        } else {
-            "$emiten.JK"
+        val symbol = when {
+            emiten.startsWith("^") -> emiten
+            emiten.endsWith(".JK") -> emiten
+            emiten.endsWith("=F") -> emiten
+            emiten.endsWith("=X") -> emiten
+            else -> "$emiten.JK"
         }
         return getMeta(symbol)?.optDouble("regularMarketPrice")?.takeIf { !it.isNaN() }
     }

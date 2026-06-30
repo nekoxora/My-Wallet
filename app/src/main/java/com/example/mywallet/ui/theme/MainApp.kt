@@ -2,6 +2,7 @@ package com.example.mywallet.ui.theme
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -12,6 +13,7 @@ enum class Layar { DASHBOARD, FORM, RINCIAN, NOTIFIKASI }
 fun MainApp() {
     var layarAktif by remember { mutableStateOf(Layar.DASHBOARD) }
     var layarSebelumnya by remember { mutableStateOf(Layar.DASHBOARD) }
+    var notifKey by remember { mutableStateOf(0) }
 
     when (layarAktif) {
         Layar.DASHBOARD -> DashboardScreen(
@@ -20,7 +22,10 @@ fun MainApp() {
                 layarAktif = Layar.FORM
             },
             onNavigateToRincian = { layarAktif = Layar.RINCIAN },
-            onNavigateToNotifikasi = { layarAktif = Layar.NOTIFIKASI }
+            onNavigateToNotifikasi = {
+                notifKey++
+                layarAktif = Layar.NOTIFIKASI
+            }
         )
 
         Layar.FORM -> FormInvestasi(
@@ -35,6 +40,8 @@ fun MainApp() {
             }
         )
 
-        Layar.NOTIFIKASI -> NotifikasiScreen(onBack = { layarAktif = Layar.DASHBOARD })
+        Layar.NOTIFIKASI -> key(notifKey) {
+            NotifikasiScreen(onBack = { layarAktif = Layar.DASHBOARD })
+        }
     }
 }
