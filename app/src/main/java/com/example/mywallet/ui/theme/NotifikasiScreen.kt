@@ -68,9 +68,12 @@ fun NotifikasiScreen(onBack: () -> Unit) {
     val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
 
     val isCleared = prefs.getBoolean("berita_cleared", false)
+    android.util.Log.d("NOTIF_DEBUG", "isCleared = $isCleared")
 
     LaunchedEffect(Unit) {
+        android.util.Log.d("NOTIF_DEBUG", "LaunchedEffect jalan, isCleared = $isCleared")
         if (isCleared) {
+            android.util.Log.d("NOTIF_DEBUG", "SKIP fetch karena cleared")
             beritaTampil = emptyList()
             isLoading = false
             return@LaunchedEffect
@@ -278,8 +281,14 @@ fun NotifikasiScreen(onBack: () -> Unit) {
 
             OutlinedButton(
                 onClick = {
+                    android.util.Log.d("NOTIF_DEBUG", "Clear All DIKLIK")
                     beritaTampil = emptyList()
-                    prefs.edit().putBoolean("berita_cleared", true).apply()
+                    val berhasil = prefs.edit().putBoolean("berita_cleared", true).commit()
+                    android.util.Log.d("NOTIF_DEBUG", "Simpan ke prefs berhasil = $berhasil")
+                    android.util.Log.d(
+                        "NOTIF_DEBUG",
+                        "Cek ulang prefs = ${prefs.getBoolean("berita_cleared", false)}"
+                    )
                 },
                 modifier = Modifier
                     .weight(1f)

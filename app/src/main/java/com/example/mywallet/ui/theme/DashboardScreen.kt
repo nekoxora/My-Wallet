@@ -235,6 +235,10 @@ fun DashboardScreen(
                     jumlahNotif = belumDibaca
 
                     if (belumDibaca > 0) {
+                        prefs.edit().putBoolean("berita_cleared", false).apply()
+                    }
+
+                    if (belumDibaca > 0) {
                         val beritaBaru = beritaResponse.data.take(belumDibaca)
                         beritaBaru.forEachIndexed { index, berita ->
                             NotificationHelper.sendBeritaNotif(
@@ -353,18 +357,6 @@ fun DashboardScreen(
                 IconNotification(
                     jumlahNotif = jumlahNotif,
                     onClick = {
-                        try {
-                            val beritaResponse = kotlinx.coroutines.runBlocking {
-                                RetrofitClient.instance.getBerita()
-                            }
-                            if (beritaResponse.status == "success") {
-                                prefs.edit()
-                                    .putInt("notif_dibaca", beritaResponse.total)
-                                    .putBoolean("berita_cleared", false)
-                                    .apply()
-                            }
-                        } catch (_: Exception) {
-                        }
                         jumlahNotif = 0
                         onNavigateToNotifikasi()
                     }
