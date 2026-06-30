@@ -58,7 +58,7 @@ object NotificationHelper {
         )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.bell)
+            .setSmallIcon(R.drawable.wallet)
             .setContentTitle("$emiten")
             .setContentText(judul)
             .setStyle(NotificationCompat.BigTextStyle().bigText(judul))
