@@ -67,24 +67,20 @@ fun NotifikasiScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
 
-    val isCleared = prefs.getBoolean("berita_cleared", false)
-    android.util.Log.d("NOTIF_DEBUG", "isCleared = $isCleared")
+    val clearedBeritaIds = prefs.getStringSet("cleared_berita_ids", emptySet()) ?: emptySet()
+    android.util.Log.d("NOTIF_DEBUG", "clearedBeritaIds = $clearedBeritaIds")
 
     LaunchedEffect(Unit) {
-        android.util.Log.d("NOTIF_DEBUG", "LaunchedEffect jalan, isCleared = $isCleared")
-        if (isCleared) {
-            android.util.Log.d("NOTIF_DEBUG", "SKIP fetch karena cleared")
-            beritaTampil = emptyList()
-            isLoading = false
-            return@LaunchedEffect
-        }
-
+        android.util.Log.d("NOTIF_DEBUG", "LaunchedEffect jalan")
+        
         try {
             isLoading = true
             val response = RetrofitClient.instance.getBerita()
 
             if (response.status == "success") {
-                val listDenganHarga = response.data.map { berita ->
+                val listFiltered = response.data.filter { it.id !in clearedBeritaIds }
+                
+                val listDenganHarga = listFiltered.map { berita ->
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                         try {
                             val symbol = toYahooSymbol(berita.emiten)
@@ -282,13 +278,13 @@ fun NotifikasiScreen(onBack: () -> Unit) {
             OutlinedButton(
                 onClick = {
                     android.util.Log.d("NOTIF_DEBUG", "Clear All DIKLIK")
+                    val currentIds = beritaTampil.map { it.id }.toSet()
+                    val newClearedIds = (prefs.getStringSet("cleared_berita_ids", emptySet()) ?: emptySet()) + currentIds
+                    
+                    prefs.edit().putStringSet("cleared_berita_ids", newClearedIds).apply()
                     beritaTampil = emptyList()
-                    val berhasil = prefs.edit().putBoolean("berita_cleared", true).commit()
-                    android.util.Log.d("NOTIF_DEBUG", "Simpan ke prefs berhasil = $berhasil")
-                    android.util.Log.d(
-                        "NOTIF_DEBUG",
-                        "Cek ulang prefs = ${prefs.getBoolean("berita_cleared", false)}"
-                    )
+                    
+                    android.util.Log.d("NOTIF_DEBUG", "Updated cleared_berita_ids: $newClearedIds")
                 },
                 modifier = Modifier
                     .weight(1f)

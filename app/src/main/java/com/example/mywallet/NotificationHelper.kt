@@ -35,6 +35,7 @@ object NotificationHelper {
     fun sendBeritaNotif(
         context: Context,
         notifId: Int,
+        beritaId: String,
         emiten: String,
         judul: String
     ) {
@@ -57,13 +58,24 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val deleteIntent = Intent(context, NotificationDeleteReceiver::class.java).apply {
+            putExtra("berita_id", beritaId)
+        }
+        val deletePendingIntent = PendingIntent.getBroadcast(
+            context,
+            notifId,
+            deleteIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.wallet)
-            .setContentTitle("$emiten")
+            .setSmallIcon(R.drawable.ic_stat_wallet)
+            .setContentTitle(emiten)
             .setContentText(judul)
             .setStyle(NotificationCompat.BigTextStyle().bigText(judul))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setContentIntent(pendingIntent)
+            .setDeleteIntent(deletePendingIntent)
             .setAutoCancel(true)
             .build()
 

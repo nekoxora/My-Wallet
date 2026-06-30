@@ -53,10 +53,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
-import com.example.mywallet.DeviceIdHelper
-import com.example.mywallet.NotificationHelper
+import com.example.mywallet.ui.theme.CustomDonutChart
 import com.example.mywallet.R
 import com.example.mywallet.StockPriceHelper
+import com.example.mywallet.ui.theme.SwipeableInvestmentCard
 import com.example.mywallet.data.DeleteData
 import com.example.mywallet.data.RetrofitClient
 import com.example.mywallet.data.Transaksi
@@ -65,6 +65,10 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import com.example.mywallet.DeviceIdHelper
+import com.example.mywallet.NotificationHelper
+import kotlin.collections.component1
+import kotlin.collections.component2
 
 @Composable
 fun IconNotification(
@@ -218,7 +222,7 @@ fun DashboardScreen(
 
             val mapBaru = coroutineScope {
                 emitenUnik.map { emiten ->
-                    async {
+                    async(kotlinx.coroutines.Dispatchers.IO) {
                         StockPriceHelper.getHargaLive(emiten) to emiten
                     }
                 }.awaitAll()
@@ -227,33 +231,38 @@ fun DashboardScreen(
             }
 
             hargaLiveMap = mapBaru
+            android.util.Log.d("HARGA_DEBUG", "hargaLiveMap = $hargaLiveMap")
+            android.util.Log.d("HARGA_DEBUG", "emitenUnik = $emitenUnik")
 
             try {
                 val beritaResponse = RetrofitClient.instance.getBerita()
                 if (beritaResponse.status == "success") {
-                    val idTerkirimSebelumnya =
-                        prefs.getStringSet("notif_id_terkirim", emptySet()) ?: emptySet()
-                    val beritaBaru = beritaResponse.data.filter { it.id !in idTerkirimSebelumnya }
+                    val idTerkirimSebelumnya = prefs.getStringSet("notif_id_terkirim", emptySet()) ?: emptySet()
+                    val idCleared = prefs.getStringSet("cleared_berita_ids", emptySet()) ?: emptySet()
+                    
+                    val beritaBelumTerkirim = beritaResponse.data.filter { it.id !in idTerkirimSebelumnya }
+                    val beritaTampilDiNotifScreen = beritaResponse.data.filter { it.id !in idCleared }
 
-                    jumlahNotif = beritaBaru.size
+                    jumlahNotif = beritaTampilDiNotifScreen.size
 
-                    if (beritaBaru.isNotEmpty()) {
-                        prefs.edit().putBoolean("berita_cleared", false).apply()
-
-                        beritaBaru.forEachIndexed { index, berita ->
+                    if (beritaBelumTerkirim.isNotEmpty()) {
+                        val beritaBaru = beritaBelumTerkirim.filter { it.id !in idCleared }
+                        
+                        beritaBaru.forEach { berita ->
                             NotificationHelper.sendBeritaNotif(
                                 context = context,
-                                notifId = 1000 + index,
-                                emiten = berita.emiten,
-                                judul = berita.judul
+                                notifId = berita.id.hashCode(),
+                                beritaId = berita.id,
+                                emiten  = berita.emiten,
+                                judul   = berita.judul
                             )
                         }
+
                         val semuaIdSekarang = beritaResponse.data.map { it.id }.toSet()
                         prefs.edit().putStringSet("notif_id_terkirim", semuaIdSekarang).apply()
                     }
                 }
-            } catch (_: Exception) {
-            }
+            } catch (_: Exception) { }
 
         } catch (e: Exception) {
             Toast.makeText(context, "Gagal mengambil data: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -355,7 +364,6 @@ fun DashboardScreen(
                         )
                     }
                 }
-
                 IconNotification(
                     jumlahNotif = jumlahNotif,
                     onClick = {
@@ -396,8 +404,7 @@ fun DashboardScreen(
                             coroutineScope.launch {
                                 try {
                                     val deviceId = DeviceIdHelper.getDeviceId(context)
-                                    val dataHapus =
-                                        DeleteData(device_id = deviceId, emiten = transaksi.emiten)
+                                    val dataHapus = DeleteData(device_id = deviceId, emiten = transaksi.emiten)
                                     val response = RetrofitClient.instance.hapusInvestasi(dataHapus)
                                     if (response.status == "success") {
                                         listTransaksi = RetrofitClient.instance.getHistori(deviceId)

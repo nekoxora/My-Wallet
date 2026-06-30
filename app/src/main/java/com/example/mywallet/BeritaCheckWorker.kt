@@ -19,15 +19,19 @@ class BeritaCheckWorker(
             if (beritaResponse.status == "success") {
                 val idTerkirimSebelumnya =
                     prefs.getStringSet("notif_id_terkirim", emptySet()) ?: emptySet()
-                val beritaBaru = beritaResponse.data.filter { it.id !in idTerkirimSebelumnya }
+                val idCleared =
+                    prefs.getStringSet("cleared_berita_ids", emptySet()) ?: emptySet()
+                
+                val beritaBaru = beritaResponse.data.filter { 
+                    it.id !in idTerkirimSebelumnya && it.id !in idCleared 
+                }
 
                 if (beritaBaru.isNotEmpty()) {
-                    prefs.edit().putBoolean("berita_cleared", false).apply()
-
-                    beritaBaru.forEachIndexed { index, berita ->
+                    beritaBaru.forEach { berita ->
                         NotificationHelper.sendBeritaNotif(
                             context = context,
-                            notifId = 2000 + index,
+                            notifId = berita.id.hashCode(),
+                            beritaId = berita.id,
                             emiten = berita.emiten,
                             judul = berita.judul
                         )
