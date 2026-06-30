@@ -53,6 +53,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
+import com.example.mywallet.DeviceIdHelper
 import com.example.mywallet.NotificationHelper
 import com.example.mywallet.R
 import com.example.mywallet.StockPriceHelper
@@ -211,7 +212,8 @@ fun DashboardScreen(
 
     LaunchedEffect(Unit) {
         try {
-            listTransaksi = RetrofitClient.instance.getHistori()
+            val deviceId = DeviceIdHelper.getDeviceId(context)
+            listTransaksi = RetrofitClient.instance.getHistori(deviceId)
             val emitenUnik = listTransaksi.map { it.emiten.uppercase() }.distinct()
 
             val mapBaru = coroutineScope {
@@ -229,17 +231,15 @@ fun DashboardScreen(
             try {
                 val beritaResponse = RetrofitClient.instance.getBerita()
                 if (beritaResponse.status == "success") {
-                    val totalBerita = beritaResponse.total
-                    val sudahDibaca = prefs.getInt("notif_dibaca", 0)
-                    val belumDibaca = (totalBerita - sudahDibaca).coerceAtLeast(0)
-                    jumlahNotif = belumDibaca
+                    val idTerkirimSebelumnya =
+                        prefs.getStringSet("notif_id_terkirim", emptySet()) ?: emptySet()
+                    val beritaBaru = beritaResponse.data.filter { it.id !in idTerkirimSebelumnya }
 
-                    if (belumDibaca > 0) {
+                    jumlahNotif = beritaBaru.size
+
+                    if (beritaBaru.isNotEmpty()) {
                         prefs.edit().putBoolean("berita_cleared", false).apply()
-                    }
 
-                    if (belumDibaca > 0) {
-                        val beritaBaru = beritaResponse.data.take(belumDibaca)
                         beritaBaru.forEachIndexed { index, berita ->
                             NotificationHelper.sendBeritaNotif(
                                 context = context,
@@ -248,6 +248,8 @@ fun DashboardScreen(
                                 judul = berita.judul
                             )
                         }
+                        val semuaIdSekarang = beritaResponse.data.map { it.id }.toSet()
+                        prefs.edit().putStringSet("notif_id_terkirim", semuaIdSekarang).apply()
                     }
                 }
             } catch (_: Exception) {
@@ -393,10 +395,12 @@ fun DashboardScreen(
                         onDelete = {
                             coroutineScope.launch {
                                 try {
-                                    val dataHapus = DeleteData(transaksi.emiten)
+                                    val deviceId = DeviceIdHelper.getDeviceId(context)
+                                    val dataHapus =
+                                        DeleteData(device_id = deviceId, emiten = transaksi.emiten)
                                     val response = RetrofitClient.instance.hapusInvestasi(dataHapus)
                                     if (response.status == "success") {
-                                        listTransaksi = RetrofitClient.instance.getHistori()
+                                        listTransaksi = RetrofitClient.instance.getHistori(deviceId)
                                         Toast.makeText(
                                             context,
                                             "Investasi ${transaksi.emiten} berhasil dihapus",

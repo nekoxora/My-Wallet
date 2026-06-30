@@ -5,6 +5,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Query
 
 interface ApiService {
     @POST("api_keuangan/insert_investasi.php")
@@ -14,7 +15,7 @@ interface ApiService {
     suspend fun hapusInvestasi(@Body data: DeleteData): ApiResponse
 
     @GET("api_keuangan/get_histori.php")
-    suspend fun getHistori(): List<Transaksi>
+    suspend fun getHistori(@Query("device_id") deviceId: String): List<Transaksi>
 
     @GET("api_keuangan/get_berita_rss.php")
     suspend fun getBerita(): BeritaResponse

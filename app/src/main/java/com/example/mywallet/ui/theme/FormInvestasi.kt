@@ -36,6 +36,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.mywallet.DeviceIdHelper
 import com.example.mywallet.data.InvestasiData
 import com.example.mywallet.data.RetrofitClient
 import kotlinx.coroutines.launch
@@ -140,7 +141,9 @@ fun FormInvestasi(onBack: () -> Unit) {
         Button(
             onClick = {
                 if (kodeEmiten.isNotEmpty() && jumlahLot.isNotEmpty() && hargaBeli.isNotEmpty()) {
+                    val deviceId = DeviceIdHelper.getDeviceId(context)
                     val dataKirim = InvestasiData(
+                        device_id = deviceId,
                         kode_emiten = kodeEmiten.uppercase(),
                         jumlah_lot = jumlahLot.toIntOrNull() ?: 0,
                         harga_beli = hargaBeli.replace(',', '.').toDoubleOrNull() ?: 0.0

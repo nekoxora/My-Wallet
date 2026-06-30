@@ -44,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.mywallet.DeviceIdHelper
 import com.example.mywallet.R
 import com.example.mywallet.StockPriceHelper
 import com.example.mywallet.data.RetrofitClient
@@ -57,7 +58,8 @@ fun RincianScreen(onNavigateToHome: () -> Unit, onNavigateToForm: () -> Unit) {
 
     LaunchedEffect(Unit) {
         try {
-            listTransaksi = RetrofitClient.instance.getHistori()
+            val deviceId = DeviceIdHelper.getDeviceId(context)
+            listTransaksi = RetrofitClient.instance.getHistori(deviceId)
         } catch (e: Exception) {
             Toast.makeText(context, "Gagal memuat data", Toast.LENGTH_SHORT).show()
         }

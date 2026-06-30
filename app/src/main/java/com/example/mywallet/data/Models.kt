@@ -1,8 +1,19 @@
 package com.example.mywallet.data
 
-data class InvestasiData(val kode_emiten: String, val jumlah_lot: Int, val harga_beli: Double)
-data class DeleteData(val emiten: String)
+data class InvestasiData(
+    val device_id: String,
+    val kode_emiten: String,
+    val jumlah_lot: Int,
+    val harga_beli: Double
+)
+
+data class DeleteData(
+    val device_id: String,
+    val emiten: String
+)
+
 data class ApiResponse(val status: String, val message: String)
+
 data class Transaksi(
     val id: Int,
     val emiten: String,
