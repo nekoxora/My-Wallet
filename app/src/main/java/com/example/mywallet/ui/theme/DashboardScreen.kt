@@ -267,6 +267,7 @@ fun DashboardScreen(
                             NotificationHelper.sendBeritaNotif(
                                 context = context,
                                 notifId = berita.id.hashCode(),
+                                beritaId = berita.id,
                                 emiten = berita.emiten,
                                 judul = berita.judul
                             )
@@ -382,7 +383,8 @@ fun DashboardScreen(
                 IconNotification(
                     jumlahNotif = jumlahNotif,
                     onClick = {
-                        val updatedTerbaca = (prefs.getStringSet("notif_id_terbaca", emptySet()) ?: emptySet()) + currentRelevantNotifIds
+                        val updatedTerbaca = (prefs.getStringSet("notif_id_terbaca", emptySet())
+                            ?: emptySet()) + currentRelevantNotifIds
                         prefs.edit().putStringSet("notif_id_terbaca", updatedTerbaca).apply()
 
                         jumlahNotif = 0
