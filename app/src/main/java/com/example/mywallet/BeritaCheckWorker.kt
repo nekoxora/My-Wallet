@@ -37,7 +37,6 @@ class BeritaCheckWorker(
                         NotificationHelper.sendBeritaNotif(
                             context = context,
                             notifId = berita.id.hashCode(),
-                            beritaId = berita.id,
                             emiten = berita.emiten,
                             judul = berita.judul
                         )
