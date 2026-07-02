@@ -115,7 +115,8 @@ fun IconNotification(
 fun DashboardScreen(
     onNavigateToForm: () -> Unit,
     onNavigateToRincian: () -> Unit,
-    onNavigateToNotifikasi: () -> Unit
+    onNavigateToNotifikasi: () -> Unit,
+    onNavigateToChat: () -> Unit
 ) {
     var listTransaksi by remember { mutableStateOf<List<Transaksi>>(emptyList()) }
     var hargaLiveMap by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
@@ -461,7 +462,7 @@ fun DashboardScreen(
             }
 
             Box(modifier = Modifier.align(Alignment.BottomEnd)) {
-                DraggableBotIcon()
+                DraggableBotIcon(onClick = onNavigateToChat)
             }
         }
     }

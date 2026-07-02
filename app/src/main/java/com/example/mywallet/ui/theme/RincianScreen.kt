@@ -52,7 +52,11 @@ import com.example.mywallet.data.Transaksi
 import kotlinx.coroutines.withContext
 
 @Composable
-fun RincianScreen(onNavigateToHome: () -> Unit, onNavigateToForm: () -> Unit) {
+fun RincianScreen(
+    onNavigateToHome: () -> Unit,
+    onNavigateToForm: () -> Unit,
+    onNavigateToChat: () -> Unit
+) {
     var listTransaksi by remember { mutableStateOf<List<Transaksi>>(emptyList()) }
     val context = LocalContext.current
 
@@ -153,7 +157,7 @@ fun RincianScreen(onNavigateToHome: () -> Unit, onNavigateToForm: () -> Unit) {
             }
 
             Box(modifier = Modifier.align(Alignment.BottomEnd)) {
-                DraggableBotIcon()
+                DraggableBotIcon(onClick = onNavigateToChat)
             }
         }
     }

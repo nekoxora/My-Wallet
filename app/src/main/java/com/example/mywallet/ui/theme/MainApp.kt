@@ -7,7 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 
-enum class Layar { DASHBOARD, FORM, RINCIAN, NOTIFIKASI }
+enum class Layar { DASHBOARD, FORM, RINCIAN, NOTIFIKASI, CHATBOT }
 
 @Composable
 fun MainApp() {
@@ -25,6 +25,10 @@ fun MainApp() {
             onNavigateToNotifikasi = {
                 notifKey++
                 layarAktif = Layar.NOTIFIKASI
+            },
+            onNavigateToChat = {
+                layarSebelumnya = Layar.DASHBOARD
+                layarAktif = Layar.CHATBOT
             }
         )
 
@@ -37,11 +41,19 @@ fun MainApp() {
             onNavigateToForm = {
                 layarSebelumnya = Layar.RINCIAN
                 layarAktif = Layar.FORM
+            },
+            onNavigateToChat = {
+                layarSebelumnya = Layar.RINCIAN
+                layarAktif = Layar.CHATBOT
             }
         )
 
         Layar.NOTIFIKASI -> key(notifKey) {
             NotifikasiScreen(onBack = { layarAktif = Layar.DASHBOARD })
         }
+
+        Layar.CHATBOT -> ChatBotScreen(
+            onBack = { layarAktif = layarSebelumnya }
+        )
     }
 }

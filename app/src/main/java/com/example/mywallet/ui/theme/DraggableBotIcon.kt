@@ -1,7 +1,6 @@
 package com.example.mywallet.ui.theme
 
 import android.content.Context
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -30,7 +29,7 @@ import com.example.mywallet.R
 import kotlin.math.roundToInt
 
 @Composable
-fun DraggableBotIcon() {
+fun DraggableBotIcon(onClick: () -> Unit = {}) {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
 
@@ -61,7 +60,7 @@ fun DraggableBotIcon() {
             .background(Color(0xFF2D2F45).copy(alpha = 0.5f))
             .border(1.dp, Color(0xFF06B6D4).copy(alpha = 0.5f), CircleShape)
             .clickable {
-                Toast.makeText(context, "Fitur Chatbot segera hadir!", Toast.LENGTH_SHORT).show()
+                onClick()
             },
         contentAlignment = Alignment.Center
     ) {
