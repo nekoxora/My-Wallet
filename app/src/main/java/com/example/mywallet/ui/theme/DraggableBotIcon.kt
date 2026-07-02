@@ -77,16 +77,16 @@ fun DraggableBotIcon(onClick: () -> Unit = {}) {
                     )
                 }
                 .clip(CircleShape)
-                .background(Color(0xFF2D2F45).copy(alpha = 0.5f))
-                .border(1.dp, Color(0xFF06B6D4).copy(alpha = 0.5f), CircleShape)
+                .background(Color(0xFF2D2F45).copy(alpha = 0.6f))
+                .border(1.5.dp, Color(0xFF06B6D4).copy(alpha = 0.8f), CircleShape)
                 .clickable { onClick() },
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                painter = painterResource(id = R.drawable.graph_ui),
+                painter = painterResource(id = R.drawable.ic_bot_modern),
                 contentDescription = "Bot AI",
                 tint = Color(0xFF06B6D4),
-                modifier = Modifier.size(35.dp)
+                modifier = Modifier.size(38.dp)
             )
         }
     }
