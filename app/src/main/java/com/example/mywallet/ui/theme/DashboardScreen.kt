@@ -334,123 +334,134 @@ fun DashboardScreen(
             }
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = padding.calculateTopPadding())
-                .padding(horizontal = 24.dp)
-        ) {
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = padding.calculateTopPadding())
+                    .padding(horizontal = 24.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Image(
-                        painter = if (profileImagePath != null)
-                            rememberAsyncImagePainter(java.io.File(profileImagePath!!))
-                        else
-                            painterResource(id = R.drawable.profile),
-                        contentDescription = "Profile Photo",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .border(2.dp, color = Purple40, CircleShape)
-                            .clickable { galleryLauncher.launch("image/*") }
-                    )
+                Spacer(modifier = Modifier.height(10.dp))
 
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column(
-                        modifier = Modifier.clickable {
-                            inputNama = namaUser
-                            showEditNama = true
-                        }
-                    ) {
-                        Text(text = "Welcome back!", color = TextGray, fontSize = 13.sp)
-                        Text(
-                            text = namaUser,
-                            color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            painter = if (profileImagePath != null)
+                                rememberAsyncImagePainter(java.io.File(profileImagePath!!))
+                            else
+                                painterResource(id = R.drawable.profile),
+                            contentDescription = "Profile Photo",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .border(2.dp, color = Purple40, CircleShape)
+                                .clickable { galleryLauncher.launch("image/*") }
                         )
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(
+                            modifier = Modifier.clickable {
+                                inputNama = namaUser
+                                showEditNama = true
+                            }
+                        ) {
+                            Text(text = "Welcome back!", color = TextGray, fontSize = 13.sp)
+                            Text(
+                                text = namaUser,
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
+                    IconNotification(
+                        jumlahNotif = jumlahNotif,
+                        onClick = {
+                            val updatedTerbaca = (prefs.getStringSet("notif_id_terbaca", emptySet())
+                                ?: emptySet()) + currentRelevantNotifIds
+                            prefs.edit().putStringSet("notif_id_terbaca", updatedTerbaca).apply()
+
+                            jumlahNotif = 0
+                            onNavigateToNotifikasi()
+                        }
+                    )
                 }
-                IconNotification(
-                    jumlahNotif = jumlahNotif,
-                    onClick = {
-                        val updatedTerbaca = (prefs.getStringSet("notif_id_terbaca", emptySet())
-                            ?: emptySet()) + currentRelevantNotifIds
-                        prefs.edit().putStringSet("notif_id_terbaca", updatedTerbaca).apply()
 
-                        jumlahNotif = 0
-                        onNavigateToNotifikasi()
-                    }
+                Spacer(modifier = Modifier.height(50.dp))
+
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CustomDonutChart(
+                        listTransaksi = listTransaksi,
+                        hargaLiveMap = hargaLiveMap
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(40.dp))
+
+                Text(
+                    text = "My Investment",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
                 )
-            }
 
-            Spacer(modifier = Modifier.height(50.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                CustomDonutChart(
-                    listTransaksi = listTransaksi,
-                    hargaLiveMap = hargaLiveMap
-                )
-            }
-
-            Spacer(modifier = Modifier.height(40.dp))
-
-            Text(
-                text = "My Investment",
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 100.dp)
-            ) {
-                items(groupedTransactions, key = { it.emiten }) { transaksi ->
-                    SwipeableInvestmentCard(
-                        transaksi = transaksi,
-                        onDelete = {
-                            coroutineScope.launch {
-                                try {
-                                    val deviceId = DeviceIdHelper.getDeviceId(context)
-                                    val dataHapus =
-                                        DeleteData(device_id = deviceId, emiten = transaksi.emiten)
-                                    val response = RetrofitClient.instance.hapusInvestasi(dataHapus)
-                                    if (response.status == "success") {
-                                        listTransaksi = RetrofitClient.instance.getHistori(deviceId)
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 100.dp)
+                ) {
+                    items(groupedTransactions, key = { it.emiten }) { transaksi ->
+                        SwipeableInvestmentCard(
+                            transaksi = transaksi,
+                            onDelete = {
+                                coroutineScope.launch {
+                                    try {
+                                        val deviceId = DeviceIdHelper.getDeviceId(context)
+                                        val dataHapus =
+                                            DeleteData(
+                                                device_id = deviceId,
+                                                emiten = transaksi.emiten
+                                            )
+                                        val response =
+                                            RetrofitClient.instance.hapusInvestasi(dataHapus)
+                                        if (response.status == "success") {
+                                            listTransaksi =
+                                                RetrofitClient.instance.getHistori(deviceId)
+                                            Toast.makeText(
+                                                context,
+                                                "Investasi ${transaksi.emiten} berhasil dihapus",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        } else {
+                                            Toast.makeText(
+                                                context,
+                                                "Server Error: ${response.message}",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    } catch (e: Exception) {
                                         Toast.makeText(
                                             context,
-                                            "Investasi ${transaksi.emiten} berhasil dihapus",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    } else {
-                                        Toast.makeText(
-                                            context,
-                                            "Server Error: ${response.message}",
+                                            "Error: ${e.localizedMessage}",
                                             Toast.LENGTH_SHORT
                                         ).show()
                                     }
-                                } catch (e: Exception) {
-                                    Toast.makeText(
-                                        context,
-                                        "Error: ${e.localizedMessage}",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
                                 }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
+            }
+
+            Box(modifier = Modifier.align(Alignment.BottomEnd)) {
+                DraggableBotIcon()
             }
         }
     }

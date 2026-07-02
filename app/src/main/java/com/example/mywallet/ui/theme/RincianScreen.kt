@@ -117,39 +117,44 @@ fun RincianScreen(onNavigateToHome: () -> Unit, onNavigateToForm: () -> Unit) {
             }
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(horizontal = 24.dp)
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.statusBars)
+                    .padding(horizontal = 24.dp)
+            ) {
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-            if (listTransaksi.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        "Belum ada investasi\nKlik '+' untuk mulai",
-                        color = TextGray,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 150.dp)
-                ) {
-                    items(listTransaksi, key = { it.id }) { transaksi ->
-                        RincianCard(transaksi = transaksi)
+                if (listTransaksi.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "Belum ada investasi\nKlik '+' untuk mulai",
+                            color = TextGray,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 150.dp)
+                    ) {
+                        items(listTransaksi, key = { it.id }) { transaksi ->
+                            RincianCard(transaksi = transaksi)
+                        }
                     }
                 }
             }
 
+            Box(modifier = Modifier.align(Alignment.BottomEnd)) {
+                DraggableBotIcon()
+            }
         }
     }
 }
