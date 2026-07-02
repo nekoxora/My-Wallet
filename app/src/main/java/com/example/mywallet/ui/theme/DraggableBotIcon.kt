@@ -1,6 +1,9 @@
 package com.example.mywallet.ui.theme
 
+import android.content.Context
 import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
@@ -29,22 +32,34 @@ import kotlin.math.roundToInt
 @Composable
 fun DraggableBotIcon() {
     val context = LocalContext.current
-    var offsetX by remember { mutableStateOf(0f) }
-    var offsetY by remember { mutableStateOf(0f) }
+    val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+
+    var offsetX by remember { mutableStateOf(prefs.getFloat("icon_x", 0f)) }
+    var offsetY by remember { mutableStateOf(prefs.getFloat("icon_y", 0f)) }
 
     Box(
         modifier = Modifier
             .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
             .padding(bottom = 125.dp, end = 24.dp)
-            .size(80.dp)
+            .size(65.dp)
             .pointerInput(Unit) {
-                detectDragGestures { change, dragAmount ->
-                    change.consume()
-                    offsetX += dragAmount.x
-                    offsetY += dragAmount.y
-                }
+                detectDragGestures(
+                    onDragEnd = {
+                        prefs.edit()
+                            .putFloat("icon_x", offsetX)
+                            .putFloat("icon_y", offsetY)
+                            .apply()
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        offsetX += dragAmount.x
+                        offsetY += dragAmount.y
+                    }
+                )
             }
             .clip(CircleShape)
+            .background(Color(0xFF2D2F45).copy(alpha = 0.5f))
+            .border(1.dp, Color(0xFF06B6D4).copy(alpha = 0.5f), CircleShape)
             .clickable {
                 Toast.makeText(context, "Fitur Chatbot segera hadir!", Toast.LENGTH_SHORT).show()
             },
@@ -53,8 +68,8 @@ fun DraggableBotIcon() {
         Icon(
             painter = painterResource(id = R.drawable.graph_ui),
             contentDescription = "Bot AI",
-            tint = Color.Unspecified,
-            modifier = Modifier.size(60.dp)
+            tint = Color(0xFF06B6D4),
+            modifier = Modifier.size(35.dp)
         )
     }
 }

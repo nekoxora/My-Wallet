@@ -127,189 +127,200 @@ fun NotifikasiScreen(onBack: () -> Unit) {
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BgDark)
-            .windowInsetsPadding(WindowInsets.statusBars)
-            .padding(24.dp)
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(BgDark)
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(24.dp)
+        ) {
 
-        if (isLoading) {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                items(3) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(150.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(CardDark)
-                    )
+            if (isLoading) {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    items(3) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(150.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(CardDark)
+                        )
+                    }
                 }
-            }
-        } else {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                items(beritaTampil) { berita ->
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = CardDark),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .clickable {
-                                if (berita.url.isNotEmpty()) {
-                                    try {
-                                        context.startActivity(
-                                            android.content.Intent(
-                                                android.content.Intent.ACTION_VIEW,
-                                                android.net.Uri.parse(berita.url)
-                                            )
-                                        )
-                                    } catch (e: Exception) {
-                                        Toast.makeText(
-                                            context,
-                                            "Link tidak valid",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                }
-                            }
-                    ) {
-                        Column(modifier = Modifier.padding(20.dp)) {
-
-                            Text(
-                                text = berita.judul,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            val isiDipotong = berita.isi.let { teks ->
-                                val teksBersih = teks.replace(Regex("<[^>]*>"), "")
-                                val paragraf = teksBersih.split("\n").filter { it.isNotBlank() }
-                                val duaParagraf = paragraf.take(2).joinToString("\n\n")
-                                when {
-                                    duaParagraf.length > 100 -> duaParagraf.take(100).trim() + "..."
-                                    paragraf.size > 2 -> "$duaParagraf..."
-                                    else -> duaParagraf
-                                }
-                            }
-                            Text(
-                                text = isiDipotong,
-                                color = TextGray,
-                                fontSize = 14.sp,
-                                lineHeight = 18.sp,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-
-                            Spacer(modifier = Modifier.height(15.dp))
-
-                            Text(
-                                text = berita.emiten,
-                                color = Color.White,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 14.sp
-                            )
-                            Spacer(modifier = Modifier.height(3.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    if (berita.harga > 0) {
-                                        Text(
-                                            text = "Price : ${berita.harga}",
-                                            color = TextGray,
-                                            fontSize = 14.sp
-                                        )
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                    }
-                                    if (berita.persentase != "-" && berita.persentase.isNotEmpty()) {
-                                        val isPositif = berita.persentase.startsWith("+")
-                                        Box(
-                                            modifier = Modifier
-                                                .width(65.dp)
-                                                .clip(RoundedCornerShape(6.dp))
-                                                .background(
-                                                    if (isPositif) Color(0xFF4ADE80)
-                                                    else Color(0xFFEF4444)
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    items(beritaTampil) { berita ->
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = CardDark),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .clickable {
+                                    if (berita.url.isNotEmpty()) {
+                                        try {
+                                            context.startActivity(
+                                                android.content.Intent(
+                                                    android.content.Intent.ACTION_VIEW,
+                                                    android.net.Uri.parse(berita.url)
                                                 )
-                                                .padding(vertical = 4.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = berita.persentase,
-                                                color = if (isPositif) Color(0xFF064E3B)
-                                                else Color.White,
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Bold
                                             )
+                                        } catch (e: Exception) {
+                                            Toast.makeText(
+                                                context,
+                                                "Link tidak valid",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
                                         }
                                     }
                                 }
-                                Text(text = berita.tgl, color = TextGray, fontSize = 14.sp)
+                        ) {
+                            Column(modifier = Modifier.padding(20.dp)) {
+
+                                Text(
+                                    text = berita.judul,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                val isiDipotong = berita.isi.let { teks ->
+                                    val teksBersih = teks.replace(Regex("<[^>]*>"), "")
+                                    val paragraf = teksBersih.split("\n").filter { it.isNotBlank() }
+                                    val duaParagraf = paragraf.take(2).joinToString("\n\n")
+                                    when {
+                                        duaParagraf.length > 100 -> duaParagraf.take(100)
+                                            .trim() + "..."
+
+                                        paragraf.size > 2 -> "$duaParagraf..."
+                                        else -> duaParagraf
+                                    }
+                                }
+                                Text(
+                                    text = isiDipotong,
+                                    color = TextGray,
+                                    fontSize = 14.sp,
+                                    lineHeight = 18.sp,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+
+                                Spacer(modifier = Modifier.height(15.dp))
+
+                                Text(
+                                    text = berita.emiten,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 14.sp
+                                )
+                                Spacer(modifier = Modifier.height(3.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        if (berita.harga > 0) {
+                                            Text(
+                                                text = "Price : ${berita.harga}",
+                                                color = TextGray,
+                                                fontSize = 14.sp
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                        }
+                                        if (berita.persentase != "-" && berita.persentase.isNotEmpty()) {
+                                            val isPositif = berita.persentase.startsWith("+")
+                                            Box(
+                                                modifier = Modifier
+                                                    .width(65.dp)
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(
+                                                        if (isPositif) Color(0xFF4ADE80)
+                                                        else Color(0xFFEF4444)
+                                                    )
+                                                    .padding(vertical = 4.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = berita.persentase,
+                                                    color = if (isPositif) Color(0xFF064E3B)
+                                                    else Color.White,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Text(text = berita.tgl, color = TextGray, fontSize = 14.sp)
+                                }
                             }
                         }
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp),
+                    shape = RoundedCornerShape(25.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color.Transparent,
+                        contentColor = RingColor
+                    ),
+                    border = BorderStroke(1.dp, RingColor)
+                ) {
+                    Text("Back", fontSize = 16.sp)
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        android.util.Log.d("NOTIF_DEBUG", "Clear All DIKLIK")
+                        val currentIds = beritaTampil.map { it.id }.toSet()
+                        val newClearedIds = (prefs.getStringSet("cleared_berita_ids", emptySet())
+                            ?: emptySet()) + currentIds
+
+                        prefs.edit().putStringSet("cleared_berita_ids", newClearedIds).apply()
+                        beritaTampil = emptyList()
+
+                        android.util.Log.d(
+                            "NOTIF_DEBUG",
+                            "Updated cleared_berita_ids: $newClearedIds"
+                        )
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp),
+                    shape = RoundedCornerShape(25.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color.Transparent,
+                        contentColor = Color(0xFFEF4444)
+                    ),
+                    border = BorderStroke(1.dp, Color(0xFFEF4444))
+                ) {
+                    Text("Clear All", fontSize = 16.sp)
+                }
+            }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            OutlinedButton(
-                onClick = onBack,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(50.dp),
-                shape = RoundedCornerShape(25.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color.Transparent,
-                    contentColor = RingColor
-                ),
-                border = BorderStroke(1.dp, RingColor)
-            ) {
-                Text("Back", fontSize = 16.sp)
-            }
-
-            OutlinedButton(
-                onClick = {
-                    android.util.Log.d("NOTIF_DEBUG", "Clear All DIKLIK")
-                    val currentIds = beritaTampil.map { it.id }.toSet()
-                    val newClearedIds = (prefs.getStringSet("cleared_berita_ids", emptySet())
-                        ?: emptySet()) + currentIds
-
-                    prefs.edit().putStringSet("cleared_berita_ids", newClearedIds).apply()
-                    beritaTampil = emptyList()
-
-                    android.util.Log.d("NOTIF_DEBUG", "Updated cleared_berita_ids: $newClearedIds")
-                },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(50.dp),
-                shape = RoundedCornerShape(25.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color.Transparent,
-                    contentColor = Color(0xFFEF4444)
-                ),
-                border = BorderStroke(1.dp, Color(0xFFEF4444))
-            ) {
-                Text("Clear All", fontSize = 16.sp)
-            }
+        Box(modifier = Modifier.align(Alignment.BottomEnd)) {
+            DraggableBotIcon()
         }
     }
 }
