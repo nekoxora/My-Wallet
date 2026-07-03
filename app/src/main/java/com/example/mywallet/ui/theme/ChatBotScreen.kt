@@ -1,6 +1,8 @@
 package com.example.mywallet.ui.theme
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,16 +15,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -32,21 +39,47 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.mywallet.DeviceIdHelper
 import com.example.mywallet.R
+import com.example.mywallet.data.GeminiService
+import com.example.mywallet.data.RetrofitClient
+import kotlinx.coroutines.launch
 
 data class PesanChat(val teks: String, val dariUser: Boolean)
 
 @Composable
 fun ChatBotScreen(onBack: () -> Unit) {
     var inputTeks by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    val scrollState = rememberLazyListState()
+
     val daftarPesan = remember {
         mutableStateListOf(
-            PesanChat("Halo! Saya asisten finansial Anda. Ada yang bisa saya bantu?", false)
+            PesanChat(
+                "Halo! Saya asisten finansial cerdas Anda. Ada yang bisa saya bantu hari ini?",
+                false
+            )
         )
+    }
+
+    var isBotTyping by remember { mutableStateOf(false) }
+
+    val templateTeks = listOf(
+        "Analisa portofolio saya",
+        "Analisa saham hari ini",
+        "Tips investasi pemula",
+        "Apa itu IHSG?"
+    )
+
+    LaunchedEffect(daftarPesan.size) {
+        if (daftarPesan.isNotEmpty()) {
+            scrollState.animateScrollToItem(daftarPesan.size - 1)
+        }
     }
 
     Column(
@@ -79,14 +112,59 @@ fun ChatBotScreen(onBack: () -> Unit) {
         }
 
         LazyColumn(
+            state = scrollState,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(daftarPesan) { pesan ->
                 BubbleChat(pesan)
+            }
+
+            if (isBotTyping) {
+                item {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(8.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = RingColor,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Bot sedang berpikir...", color = TextGray, fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+
+        LazyRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(templateTeks) { template ->
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(CardDark)
+                        .border(1.dp, RingColor, RoundedCornerShape(20.dp))
+                        .clickable {
+                            if (!isBotTyping) {
+                                daftarPesan.add(PesanChat(template, true))
+                                kirimPesanKeGemini(template, context, daftarPesan) {
+                                    isBotTyping = it
+                                }
+                            }
+                        }
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(text = template, color = Color.White, fontSize = 13.sp)
+                }
             }
         }
 
@@ -100,7 +178,7 @@ fun ChatBotScreen(onBack: () -> Unit) {
                 value = inputTeks,
                 onValueChange = { inputTeks = it },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("Analisis saham...", color = TextGray) },
+                placeholder = { Text("Tanya analisis saham...", color = TextGray) },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedTextColor = Color.White,
                     unfocusedTextColor = Color.White,
@@ -113,17 +191,12 @@ fun ChatBotScreen(onBack: () -> Unit) {
             Spacer(modifier = Modifier.width(8.dp))
             IconButton(
                 onClick = {
-                    if (inputTeks.isNotBlank()) {
-                        daftarPesan.add(PesanChat(inputTeks, true))
-                        val userMsg = inputTeks
+                    if (inputTeks.isNotBlank() && !isBotTyping) {
+                        val userMessage = inputTeks
+                        daftarPesan.add(PesanChat(userMessage, true))
                         inputTeks = ""
 
-                        daftarPesan.add(
-                            PesanChat(
-                                "Saya sedang memproses pertanyaan Anda tentang '$userMsg'...",
-                                false
-                            )
-                        )
+                        kirimPesanKeGemini(userMessage, context, daftarPesan) { isBotTyping = it }
                     }
                 },
                 modifier = Modifier
@@ -134,9 +207,43 @@ fun ChatBotScreen(onBack: () -> Unit) {
                 Icon(
                     painter = painterResource(id = R.drawable.arrow_up),
                     contentDescription = "Send",
+                    tint = Color.White,
                     modifier = Modifier.size(24.dp)
                 )
             }
+        }
+    }
+}
+
+private fun kirimPesanKeGemini(
+    message: String,
+    context: android.content.Context,
+    daftarPesan: MutableList<PesanChat>,
+    setLoading: (Boolean) -> Unit
+) {
+    val coroutineScope = kotlinx.coroutines.MainScope()
+    val deviceId = DeviceIdHelper.getDeviceId(context)
+    setLoading(true)
+
+    coroutineScope.launch {
+        try {
+            var portfolioContext = ""
+
+            if (message.contains("portofolio", ignoreCase = true)) {
+                val response = RetrofitClient.instance.getHistori(deviceId)
+                if (response.isNotEmpty()) {
+                    portfolioContext = response.joinToString("\n") {
+                        "Emiten: ${it.emiten}, Lot: ${it.lot}, Harga Beli: ${it.harga}"
+                    }
+                }
+            }
+
+            val botResponse = GeminiService.generateResponse(message, portfolioContext, deviceId)
+            daftarPesan.add(PesanChat(botResponse, false))
+        } catch (e: Exception) {
+            daftarPesan.add(PesanChat("Gagal mendapatkan respon: ${e.localizedMessage}", false))
+        } finally {
+            setLoading(false)
         }
     }
 }
@@ -153,6 +260,7 @@ fun BubbleChat(pesan: PesanChat) {
     ) {
         Box(
             modifier = Modifier
+                .widthIn(max = 280.dp)
                 .clip(
                     RoundedCornerShape(
                         topStart = 16.dp,
