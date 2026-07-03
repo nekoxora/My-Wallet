@@ -5,8 +5,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -22,72 +20,46 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.example.mywallet.R
 import kotlin.math.roundToInt
 
 @Composable
 fun DraggableBotIcon(onClick: () -> Unit = {}) {
-    val density = LocalDensity.current
+    var localOffsetX by remember { mutableStateOf(BotIconSessionState.offsetX) }
+    var localOffsetY by remember { mutableStateOf(BotIconSessionState.offsetY) }
 
-    val paddingBottomPx = with(density) { 125.dp.toPx() }
-    val paddingEndPx = with(density) { 24.dp.toPx() }
+    Box(
+        modifier = Modifier
+            .offset { IntOffset(localOffsetX.roundToInt(), localOffsetY.roundToInt()) }
+            .padding(bottom = 240.dp, end = 24.dp)
+            .size(65.dp)
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDrag = { change, dragAmount ->
+                        change.consume()
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val maxWidthPx = constraints.maxWidth.toFloat()
-        val maxHeightPx = constraints.maxHeight.toFloat()
+                        localOffsetX += dragAmount.x
+                        localOffsetY += dragAmount.y
 
-        var iconSize by remember { mutableStateOf(IntSize.Zero) }
-
-        var localOffsetX by remember { mutableStateOf(BotIconSessionState.offsetX) }
-        var localOffsetY by remember { mutableStateOf(BotIconSessionState.offsetY) }
-
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .onSizeChanged { iconSize = it }
-                .offset { IntOffset(localOffsetX.roundToInt(), localOffsetY.roundToInt()) }
-                .padding(bottom = 235.dp, end = 24.dp)
-                .size(65.dp)
-                .pointerInput(iconSize, maxWidthPx, maxHeightPx) {
-                    detectDragGestures(
-                        onDrag = { change, dragAmount ->
-                            change.consume()
-
-                            val iconW = iconSize.width.toFloat()
-                            val iconH = iconSize.height.toFloat()
-
-                            val minX = -(maxWidthPx - paddingEndPx - iconW)
-                            val maxX = paddingEndPx
-
-                            val minY = -(maxHeightPx - paddingBottomPx - iconH)
-                            val maxY = paddingBottomPx
-
-                            localOffsetX = (localOffsetX + dragAmount.x).coerceIn(minX, maxX)
-                            localOffsetY = (localOffsetY + dragAmount.y).coerceIn(minY, maxY)
-
-                            BotIconSessionState.offsetX = localOffsetX
-                            BotIconSessionState.offsetY = localOffsetY
-                        }
-                    )
-                }
-                .clip(CircleShape)
-                .background(Color(0xFF2D2F45).copy(alpha = 0.6f))
-                .border(1.5.dp, Color(0xFF06B6D4).copy(alpha = 0.8f), CircleShape)
-                .clickable { onClick() },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_bot_modern),
-                contentDescription = "Bot AI",
-                tint = Color(0xFF06B6D4),
-                modifier = Modifier.size(38.dp)
-            )
-        }
+                        BotIconSessionState.offsetX = localOffsetX
+                        BotIconSessionState.offsetY = localOffsetY
+                    }
+                )
+            }
+            .clip(CircleShape)
+            .background(Color(0xFF2D2F45).copy(alpha = 0.6f))
+            .border(1.5.dp, Color(0xFF06B6D4).copy(alpha = 0.8f), CircleShape)
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = painterResource(id = R.drawable.icon_bot),
+            contentDescription = "Bot AI",
+            tint = Color.Unspecified,
+            modifier = Modifier.size(40.dp)
+        )
     }
 }
