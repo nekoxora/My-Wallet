@@ -34,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,7 +48,8 @@ import androidx.compose.ui.unit.sp
 import com.example.mywallet.DeviceIdHelper
 import com.example.mywallet.R
 import com.example.mywallet.data.GeminiService
-import com.example.mywallet.data.RetrofitClient
+import dev.jeziellago.compose.markdowntext.MarkdownText
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 data class PesanChat(val teks: String, val dariUser: Boolean)
@@ -57,11 +59,12 @@ fun ChatBotScreen(onBack: () -> Unit) {
     var inputTeks by remember { mutableStateOf("") }
     val context = LocalContext.current
     val scrollState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
 
     val daftarPesan = remember {
         mutableStateListOf(
             PesanChat(
-                "Halo! Saya asisten finansial cerdas Anda. Ada yang bisa saya bantu hari ini?",
+                "Halo! Saya Elysia, asisten finansial cerdas Anda. Apakah ada yang bisa saya bantu hari ini?",
                 false
             )
         )
@@ -119,10 +122,7 @@ fun ChatBotScreen(onBack: () -> Unit) {
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(daftarPesan) { pesan ->
-                BubbleChat(pesan)
-            }
-
+            items(daftarPesan) { pesan -> BubbleChat(pesan) }
             if (isBotTyping) {
                 item {
                     Row(
@@ -156,15 +156,16 @@ fun ChatBotScreen(onBack: () -> Unit) {
                         .clickable {
                             if (!isBotTyping) {
                                 daftarPesan.add(PesanChat(template, true))
-                                kirimPesanKeGemini(template, context, daftarPesan) {
-                                    isBotTyping = it
-                                }
+                                kirimPesanKeGemini(
+                                    template,
+                                    context,
+                                    daftarPesan,
+                                    coroutineScope
+                                ) { isBotTyping = it }
                             }
                         }
                         .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text(text = template, color = Color.White, fontSize = 13.sp)
-                }
+                ) { Text(text = template, color = Color.White, fontSize = 13.sp) }
             }
         }
 
@@ -175,8 +176,7 @@ fun ChatBotScreen(onBack: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(
-                value = inputTeks,
-                onValueChange = { inputTeks = it },
+                value = inputTeks, onValueChange = { inputTeks = it },
                 modifier = Modifier.weight(1f),
                 placeholder = { Text("Tanya analisis saham...", color = TextGray) },
                 colors = OutlinedTextFieldDefaults.colors(
@@ -195,8 +195,12 @@ fun ChatBotScreen(onBack: () -> Unit) {
                         val userMessage = inputTeks
                         daftarPesan.add(PesanChat(userMessage, true))
                         inputTeks = ""
-
-                        kirimPesanKeGemini(userMessage, context, daftarPesan) { isBotTyping = it }
+                        kirimPesanKeGemini(
+                            userMessage,
+                            context,
+                            daftarPesan,
+                            coroutineScope
+                        ) { isBotTyping = it }
                     }
                 },
                 modifier = Modifier
@@ -219,26 +223,14 @@ private fun kirimPesanKeGemini(
     message: String,
     context: android.content.Context,
     daftarPesan: MutableList<PesanChat>,
+    scope: CoroutineScope,
     setLoading: (Boolean) -> Unit
 ) {
-    val coroutineScope = kotlinx.coroutines.MainScope()
-    val deviceId = DeviceIdHelper.getDeviceId(context)
     setLoading(true)
-
-    coroutineScope.launch {
+    scope.launch {
         try {
-            var portfolioContext = ""
-
-            if (message.contains("portofolio", ignoreCase = true)) {
-                val response = RetrofitClient.instance.getHistori(deviceId)
-                if (response.isNotEmpty()) {
-                    portfolioContext = response.joinToString("\n") {
-                        "Emiten: ${it.emiten}, Lot: ${it.lot}, Harga Beli: ${it.harga}"
-                    }
-                }
-            }
-
-            val botResponse = GeminiService.generateResponse(message, portfolioContext, deviceId)
+            val deviceId = DeviceIdHelper.getDeviceId(context)
+            val botResponse = GeminiService.generateResponse(message, deviceId)
             daftarPesan.add(PesanChat(botResponse, false))
         } catch (e: Exception) {
             daftarPesan.add(PesanChat("Gagal mendapatkan respon: ${e.localizedMessage}", false))
@@ -254,10 +246,7 @@ fun BubbleChat(pesan: PesanChat) {
     val bgColor = if (pesan.dariUser) RingColor else CardDark
     val textColor = Color.White
 
-    Box(
-        modifier = Modifier.fillMaxWidth(),
-        contentAlignment = alignment
-    ) {
+    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = alignment) {
         Box(
             modifier = Modifier
                 .widthIn(max = 280.dp)
@@ -272,7 +261,15 @@ fun BubbleChat(pesan: PesanChat) {
                 .background(bgColor)
                 .padding(12.dp)
         ) {
-            Text(text = pesan.teks, color = textColor, fontSize = 14.sp)
+            if (pesan.dariUser) {
+                Text(text = pesan.teks, color = textColor, fontSize = 14.sp)
+            } else {
+                MarkdownText(
+                    markdown = pesan.teks,
+                    color = textColor,
+                    fontSize = 14.sp
+                )
+            }
         }
     }
 }
