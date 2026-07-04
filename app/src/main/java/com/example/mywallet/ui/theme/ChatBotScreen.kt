@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import com.example.mywallet.DeviceIdHelper
 import com.example.mywallet.R
 import com.example.mywallet.data.GeminiService
+import com.example.mywallet.data.RetrofitClient
 import dev.jeziellago.compose.markdowntext.MarkdownText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -71,6 +72,18 @@ fun ChatBotScreen(onBack: () -> Unit) {
     }
 
     var isBotTyping by remember { mutableStateOf(false) }
+
+    var portofolioEmitenList by remember { mutableStateOf<List<String>>(emptyList()) }
+
+    LaunchedEffect(Unit) {
+        try {
+            val deviceId = DeviceIdHelper.getDeviceId(context)
+            val listTransaksi = RetrofitClient.instance.getHistori(deviceId)
+            portofolioEmitenList = listTransaksi.map { it.emiten }.distinct()
+        } catch (e: Exception) {
+            android.util.Log.e("CHAT_DEBUG", "Gagal memuat daftar emiten portofolio: ${e.message}")
+        }
+    }
 
     val templateTeks = listOf(
         "Analisa portofolio saya",
@@ -160,6 +173,7 @@ fun ChatBotScreen(onBack: () -> Unit) {
                                     template,
                                     context,
                                     daftarPesan,
+                                    portofolioEmitenList,
                                     coroutineScope
                                 ) { isBotTyping = it }
                             }
@@ -199,6 +213,7 @@ fun ChatBotScreen(onBack: () -> Unit) {
                             userMessage,
                             context,
                             daftarPesan,
+                            portofolioEmitenList,
                             coroutineScope
                         ) { isBotTyping = it }
                     }
@@ -223,6 +238,7 @@ private fun kirimPesanKeGemini(
     message: String,
     context: android.content.Context,
     daftarPesan: MutableList<PesanChat>,
+    portofolioEmitenList: List<String>,
     scope: CoroutineScope,
     setLoading: (Boolean) -> Unit
 ) {
@@ -230,7 +246,11 @@ private fun kirimPesanKeGemini(
     scope.launch {
         try {
             val deviceId = DeviceIdHelper.getDeviceId(context)
-            val botResponse = GeminiService.generateResponse(message, deviceId)
+            val botResponse = GeminiService.generateResponse(
+                userInput = message,
+                deviceId = deviceId,
+                portofolioEmitenList = portofolioEmitenList
+            )
             daftarPesan.add(PesanChat(botResponse, false))
         } catch (e: Exception) {
             daftarPesan.add(PesanChat("Gagal mendapatkan respon: ${e.localizedMessage}", false))
