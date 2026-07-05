@@ -8,8 +8,10 @@ object DeviceIdHelper {
     private const val PREFS_NAME = "app_prefs"
     private const val KEY_DEVICE_ID = "device_id"
 
-    fun getDeviceId(context: Context): String {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    fun getDeviceId(context: Context): String = synchronized(this) {
+        val appContext = context.applicationContext
+        val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val existingId = prefs.getString(KEY_DEVICE_ID, null)
 
         if (existingId != null) {

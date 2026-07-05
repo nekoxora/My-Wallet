@@ -49,7 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.mywallet.DeviceIdHelper
 import com.example.mywallet.R
-import com.example.mywallet.data.GeminiService
+import com.example.mywallet.data.ChatBotService
 import com.example.mywallet.data.RetrofitClient
 import dev.jeziellago.compose.markdowntext.MarkdownText
 import kotlinx.coroutines.CoroutineScope
@@ -173,7 +173,7 @@ fun ChatBotScreen(onBack: () -> Unit) {
                         .clickable {
                             if (!isBotTyping) {
                                 daftarPesan.add(PesanChat(template, true))
-                                kirimPesanKeGemini(
+                                kirimPesanKeBot(
                                     template,
                                     context,
                                     daftarPesan,
@@ -213,7 +213,7 @@ fun ChatBotScreen(onBack: () -> Unit) {
                         val userMessage = inputTeks
                         daftarPesan.add(PesanChat(userMessage, true))
                         inputTeks = ""
-                        kirimPesanKeGemini(
+                        kirimPesanKeBot(
                             userMessage,
                             context,
                             daftarPesan,
@@ -238,7 +238,7 @@ fun ChatBotScreen(onBack: () -> Unit) {
     }
 }
 
-private fun kirimPesanKeGemini(
+private fun kirimPesanKeBot(
     message: String,
     context: android.content.Context,
     daftarPesan: MutableList<PesanChat>,
@@ -250,7 +250,7 @@ private fun kirimPesanKeGemini(
     scope.launch {
         try {
             val deviceId = DeviceIdHelper.getDeviceId(context)
-            val botResponse = GeminiService.generateResponse(
+            val botResponse = ChatBotService.generateResponse(
                 userInput = message,
                 deviceId = deviceId,
                 portofolioEmitenList = portofolioEmitenList

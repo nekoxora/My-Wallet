@@ -13,9 +13,11 @@ import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-object GeminiService {
+object ChatBotService {
 
-    private const val PROXY_URL = "http://43.133.150.113/api_keuangan/gemini_proxy.php"
+    private const val PROXY_URL = "http://43.133.150.113/api_keuangan/chatbot.php"
+
+    private const val RSS_URL = "http://43.133.150.113/api_keuangan/get_berita_rss.php"
 
     private val indexMap = mapOf(
         "IHSG" to "^JKSE",
@@ -67,6 +69,46 @@ object GeminiService {
         return hargaLiveArray
     }
 
+    private suspend fun fetchBeritaList(): JSONArray = withContext(Dispatchers.IO) {
+        val beritaArray = JSONArray()
+        try {
+            val request = Request.Builder()
+                .url(RSS_URL)
+                .get()
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    val responseBody = response.body?.string() ?: ""
+                    val jsonResponse = JSONObject(responseBody)
+
+                    if (jsonResponse.optString("status") == "success") {
+                        val dataArray = jsonResponse.optJSONArray("data") ?: JSONArray()
+
+                        val limit = minOf(dataArray.length(), 5)
+                        for (i in 0 until limit) {
+                            val item = dataArray.getJSONObject(i)
+                            val emiten = item.optString("emiten", "")
+                            val judul = item.optString("judul", "")
+
+                            if (judul.isNotEmpty()) {
+                                beritaArray.put(
+                                    JSONObject().apply {
+                                        put("emiten", emiten)
+                                        put("judul", judul)
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("GEMINI_DEBUG", "Gagal fetch berita: \${e.localizedMessage}")
+        }
+        return@withContext beritaArray
+    }
+
     suspend fun generateResponse(
         userInput: String,
         deviceId: String,
@@ -75,12 +117,16 @@ object GeminiService {
         try {
             val hargaLiveArray = fetchHargaLiveList(userInput, portofolioEmitenList)
 
+            val beritaArray = fetchBeritaList()
+
             android.util.Log.d("GEMINI_DEBUG", "Harga live dikirim: $hargaLiveArray")
+            android.util.Log.d("GEMINI_DEBUG", "Berita dikirim: $beritaArray")
 
             val bodyJson = JSONObject().apply {
                 put("user_input", userInput)
                 put("device_id", deviceId)
                 put("harga_live_list", hargaLiveArray)
+                put("berita_list", beritaArray)
             }
 
             val requestBody = bodyJson.toString().toRequestBody(JSON)

@@ -45,6 +45,11 @@ import com.example.mywallet.DeviceIdHelper
 import com.example.mywallet.StockPriceHelper
 import com.example.mywallet.data.BeritaSaham
 import com.example.mywallet.data.RetrofitClient
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 
 fun toYahooSymbol(emiten: String): String {
     return when (emiten.uppercase().trim()) {
@@ -73,8 +78,6 @@ fun NotifikasiScreen(onBack: () -> Unit) {
     android.util.Log.d("NOTIF_DEBUG", "clearedBeritaIds = $clearedBeritaIds")
 
     LaunchedEffect(Unit) {
-        android.util.Log.d("NOTIF_DEBUG", "LaunchedEffect jalan")
-
         try {
             isLoading = true
             val deviceId = DeviceIdHelper.getDeviceId(context)
@@ -85,38 +88,33 @@ fun NotifikasiScreen(onBack: () -> Unit) {
 
             if (response.status == "success") {
                 val listFiltered = response.data.filter {
-                    it.id !in clearedBeritaIds && BeritaFilterHelper.isBeritaRelevant(
-                        it,
-                        userEmitens
-                    )
+                    it.id !in clearedBeritaIds && BeritaFilterHelper.isBeritaRelevant(it, userEmitens)
                 }
 
-                val listDenganHarga = listFiltered.map { berita ->
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        try {
-                            val symbol = toYahooSymbol(berita.emiten)
+                beritaTampil = coroutineScope {
+                    listFiltered.map { berita ->
+                        async(Dispatchers.IO) {
+                            try {
+                                val symbol = toYahooSymbol(berita.emiten)
+                                if (symbol.isEmpty()) return@async berita
 
-                            if (symbol.isEmpty()) {
-                                return@withContext berita
+                                var hargaLive = StockPriceHelper.getHargaLive(symbol)
+                                val persentaseLive = StockPriceHelper.getPersentaseLive(symbol)
+
+                                if (hargaLive != null && hargaLive < 1.0) {
+                                    hargaLive = 1.0 / hargaLive
+                                }
+
+                                berita.copy(
+                                    harga = hargaLive?.toInt() ?: 0,
+                                    persentase = persentaseLive ?: "-"
+                                )
+                            } catch (e: Exception) {
+                                berita
                             }
-
-                            var hargaLive = StockPriceHelper.getHargaLive(symbol)
-                            val persentaseLive = StockPriceHelper.getPersentaseLive(symbol)
-
-                            if (hargaLive != null && hargaLive < 1.0) {
-                                hargaLive = 1.0 / hargaLive
-                            }
-
-                            berita.copy(
-                                harga = hargaLive?.toInt() ?: 0,
-                                persentase = persentaseLive ?: "-"
-                            )
-                        } catch (e: Exception) {
-                            berita
                         }
-                    }
+                    }.awaitAll()
                 }
-                beritaTampil = listDenganHarga
             } else {
                 beritaTampil = emptyList()
             }
