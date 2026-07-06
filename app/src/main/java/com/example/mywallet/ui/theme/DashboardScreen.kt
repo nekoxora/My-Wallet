@@ -55,7 +55,6 @@ import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import com.example.mywallet.BeritaFilterHelper
 import com.example.mywallet.DeviceIdHelper
-import com.example.mywallet.NotificationHelper
 import com.example.mywallet.R
 import com.example.mywallet.StockPriceHelper
 import com.example.mywallet.data.DeleteData
@@ -236,46 +235,26 @@ fun DashboardScreen(
             try {
                 val beritaResponse = RetrofitClient.instance.getBerita()
                 if (beritaResponse.status == "success") {
-                    val idTerkirimSebelumnya =
-                        prefs.getStringSet("notif_id_terkirim", emptySet()) ?: emptySet()
                     val idCleared =
                         prefs.getStringSet("cleared_berita_ids", emptySet()) ?: emptySet()
-                    val idTerbaca =
-                        prefs.getStringSet("notif_id_terbaca", emptySet()) ?: emptySet()
-                    val deviceId = DeviceIdHelper.getDeviceId(context)
+                    val idTerbaca = prefs.getStringSet("notif_id_terbaca", emptySet()) ?: emptySet()
                     val userEmitens = listTransaksi.map { it.emiten.uppercase().trim() }.toSet()
 
-                    val beritaBelumTerkirim =
-                        beritaResponse.data.filter { it.id !in idTerkirimSebelumnya }
                     val beritaRelevan = beritaResponse.data.filter {
                         it.id !in idCleared && BeritaFilterHelper.isBeritaRelevant(it, userEmitens)
                     }
 
                     currentRelevantNotifIds = beritaRelevan.map { it.id }.toSet()
-                    val beritaBelumTerbaca = beritaRelevan.filter { it.id !in idTerbaca }
 
+                    val beritaBelumTerbaca = beritaRelevan.filter { it.id !in idTerbaca }
                     jumlahNotif = beritaBelumTerbaca.size
 
-                    if (beritaBelumTerkirim.isNotEmpty()) {
-                        val beritaBaru = beritaBelumTerkirim.filter {
-                            it.id !in idCleared && BeritaFilterHelper.isBeritaRelevant(
-                                it,
-                                userEmitens
-                            )
-                        }
+                    val semuaIdSekarang = beritaResponse.data.map { it.id }.toSet()
+                    val idTerkirimSebelumnya =
+                        prefs.getStringSet("notif_id_terkirim", emptySet()) ?: emptySet()
+                    val updatedTerkirim = idTerkirimSebelumnya + semuaIdSekarang
 
-                        beritaBaru.forEach { berita ->
-                            NotificationHelper.sendBeritaNotif(
-                                context = context,
-                                notifId = berita.id.hashCode(),
-                                emiten = berita.emiten,
-                                judul = berita.judul
-                            )
-                        }
-
-                        val semuaIdSekarang = beritaResponse.data.map { it.id }.toSet()
-                        prefs.edit().putStringSet("notif_id_terkirim", semuaIdSekarang).apply()
-                    }
+                    prefs.edit().putStringSet("notif_id_terkirim", updatedTerkirim).apply()
                 }
             } catch (_: Exception) {
             }
