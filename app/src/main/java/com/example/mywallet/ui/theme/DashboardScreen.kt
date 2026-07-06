@@ -33,10 +33,14 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -44,9 +48,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -119,8 +126,13 @@ fun DashboardScreen(
 ) {
     var listTransaksi by remember { mutableStateOf<List<Transaksi>>(emptyList()) }
     var hargaLiveMap by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
+    var isRefreshing by remember { mutableStateOf(false) }
+    var refreshTrigger by remember { mutableIntStateOf(0) }
+    val pullState = rememberPullToRefreshState()
+    
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+    val density = LocalDensity.current
     val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
     val groupedTransactions by remember(listTransaksi) {
         derivedStateOf {
@@ -212,8 +224,10 @@ fun DashboardScreen(
         )
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(refreshTrigger) {
         try {
+            if (refreshTrigger > 0) isRefreshing = true
+            
             val deviceId = DeviceIdHelper.getDeviceId(context)
             listTransaksi = RetrofitClient.instance.getHistori(deviceId)
             val emitenUnik = listTransaksi.map { it.emiten.uppercase() }.distinct()
@@ -229,14 +243,11 @@ fun DashboardScreen(
             }
 
             hargaLiveMap = mapBaru
-            android.util.Log.d("HARGA_DEBUG", "hargaLiveMap = $hargaLiveMap")
-            android.util.Log.d("HARGA_DEBUG", "emitenUnik = $emitenUnik")
-
+            
             try {
                 val beritaResponse = RetrofitClient.instance.getBerita()
                 if (beritaResponse.status == "success") {
-                    val idCleared =
-                        prefs.getStringSet("cleared_berita_ids", emptySet()) ?: emptySet()
+                    val idCleared = prefs.getStringSet("cleared_berita_ids", emptySet()) ?: emptySet()
                     val idTerbaca = prefs.getStringSet("notif_id_terbaca", emptySet()) ?: emptySet()
                     val userEmitens = listTransaksi.map { it.emiten.uppercase().trim() }.toSet()
 
@@ -245,13 +256,11 @@ fun DashboardScreen(
                     }
 
                     currentRelevantNotifIds = beritaRelevan.map { it.id }.toSet()
-
                     val beritaBelumTerbaca = beritaRelevan.filter { it.id !in idTerbaca }
                     jumlahNotif = beritaBelumTerbaca.size
 
                     val semuaIdSekarang = beritaResponse.data.map { it.id }.toSet()
-                    val idTerkirimSebelumnya =
-                        prefs.getStringSet("notif_id_terkirim", emptySet()) ?: emptySet()
+                    val idTerkirimSebelumnya = prefs.getStringSet("notif_id_terkirim", emptySet()) ?: emptySet()
                     val updatedTerkirim = idTerkirimSebelumnya + semuaIdSekarang
 
                     prefs.edit().putStringSet("notif_id_terkirim", updatedTerkirim).apply()
@@ -259,8 +268,13 @@ fun DashboardScreen(
             } catch (_: Exception) {
             }
 
+            if (refreshTrigger > 0) kotlinx.coroutines.delay(800)
+            isRefreshing = false
+
         } catch (e: Exception) {
             Toast.makeText(context, "Gagal mengambil data: ${e.message}", Toast.LENGTH_SHORT).show()
+        } finally {
+            isRefreshing = false
         }
     }
 
@@ -393,49 +407,71 @@ fun DashboardScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 100.dp)
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = { refreshTrigger++ },
+                    state = pullState,
+                    modifier = Modifier.fillMaxSize().clipToBounds(),
+                    indicator = {
+                        if (isRefreshing) {
+                            PullToRefreshDefaults.Indicator(
+                                state = pullState,
+                                isRefreshing = isRefreshing,
+                                modifier = Modifier.align(Alignment.TopCenter)
+                            )
+                        }
+                    }
                 ) {
-                    items(groupedTransactions, key = { it.emiten }) { transaksi ->
-                        SwipeableInvestmentCard(
-                            transaksi = transaksi,
-                            onDelete = {
-                                coroutineScope.launch {
-                                    try {
-                                        val deviceId = DeviceIdHelper.getDeviceId(context)
-                                        val dataHapus =
-                                            DeleteData(
-                                                device_id = deviceId,
-                                                emiten = transaksi.emiten
-                                            )
-                                        val response =
-                                            RetrofitClient.instance.hapusInvestasi(dataHapus)
-                                        if (response.status == "success") {
-                                            listTransaksi =
-                                                RetrofitClient.instance.getHistori(deviceId)
+                    val dragAmount = if (isRefreshing || pullState.isAnimating) 0f else with(density) { pullState.distanceFraction * 80.dp.toPx() }
+                    
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                translationY = dragAmount
+                            },
+                        contentPadding = PaddingValues(bottom = 100.dp)
+                    ) {
+                        items(groupedTransactions, key = { it.emiten }) { transaksi ->
+                            SwipeableInvestmentCard(
+                                transaksi = transaksi,
+                                onDelete = {
+                                    coroutineScope.launch {
+                                        try {
+                                            val deviceId = DeviceIdHelper.getDeviceId(context)
+                                            val dataHapus =
+                                                DeleteData(
+                                                    device_id = deviceId,
+                                                    emiten = transaksi.emiten
+                                                )
+                                            val response =
+                                                RetrofitClient.instance.hapusInvestasi(dataHapus)
+                                            if (response.status == "success") {
+                                                listTransaksi =
+                                                    RetrofitClient.instance.getHistori(deviceId)
+                                                Toast.makeText(
+                                                    context,
+                                                    "Investasi ${transaksi.emiten} berhasil dihapus",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            } else {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Server Error: ${response.message}",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        } catch (e: Exception) {
                                             Toast.makeText(
                                                 context,
-                                                "Investasi ${transaksi.emiten} berhasil dihapus",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                        } else {
-                                            Toast.makeText(
-                                                context,
-                                                "Server Error: ${response.message}",
+                                                "Error: ${e.localizedMessage}",
                                                 Toast.LENGTH_SHORT
                                             ).show()
                                         }
-                                    } catch (e: Exception) {
-                                        Toast.makeText(
-                                            context,
-                                            "Error: ${e.localizedMessage}",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
                                     }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }

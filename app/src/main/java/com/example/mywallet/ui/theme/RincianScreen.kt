@@ -28,17 +28,24 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -58,14 +65,26 @@ fun RincianScreen(
     onNavigateToChat: () -> Unit
 ) {
     var listTransaksi by remember { mutableStateOf<List<Transaksi>>(emptyList()) }
+    var isRefreshing by remember { mutableStateOf(false) }
+    var refreshTrigger by remember { mutableIntStateOf(0) }
+    val pullState = rememberPullToRefreshState()
+    
     val context = LocalContext.current
+    val density = LocalDensity.current
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(refreshTrigger) {
         try {
+            if (refreshTrigger > 0) isRefreshing = true
+            
             val deviceId = DeviceIdHelper.getDeviceId(context)
             listTransaksi = RetrofitClient.instance.getHistori(deviceId)
+
+            if (refreshTrigger > 0) kotlinx.coroutines.delay(800)
+            isRefreshing = false
         } catch (e: Exception) {
             Toast.makeText(context, "Gagal memuat data", Toast.LENGTH_SHORT).show()
+        } finally {
+            isRefreshing = false
         }
     }
 
@@ -145,12 +164,34 @@ fun RincianScreen(
                         )
                     }
                 } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 150.dp)
+                    PullToRefreshBox(
+                        isRefreshing = isRefreshing,
+                        onRefresh = { refreshTrigger++ },
+                        state = pullState,
+                        modifier = Modifier.fillMaxSize().clipToBounds(),
+                        indicator = {
+                            if (isRefreshing) {
+                                PullToRefreshDefaults.Indicator(
+                                    state = pullState,
+                                    isRefreshing = isRefreshing,
+                                    modifier = Modifier.align(Alignment.TopCenter)
+                                )
+                            }
+                        }
                     ) {
-                        items(listTransaksi, key = { it.id }) { transaksi ->
-                            RincianCard(transaksi = transaksi)
+                        val dragAmount = if (isRefreshing || pullState.isAnimating) 0f else with(density) { pullState.distanceFraction * 80.dp.toPx() }
+                        
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    translationY = dragAmount
+                                },
+                            contentPadding = PaddingValues(bottom = 150.dp)
+                        ) {
+                            items(listTransaksi, key = { it.id }) { transaksi ->
+                                RincianCard(transaksi = transaksi)
+                            }
                         }
                     }
                 }
