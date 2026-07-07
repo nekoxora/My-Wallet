@@ -11,7 +11,8 @@ object StockPriceHelper {
 
     private suspend fun getMeta(symbol: String): JSONObject? {
         return try {
-            val url = "https://query1.finance.yahoo.com/v8/finance/chart/$symbol?interval=1d&range=1d"
+            val url =
+                "https://query1.finance.yahoo.com/v8/finance/chart/$symbol?interval=1d&range=1d"
             val request = Request.Builder()
                 .url(url)
                 .addHeader("User-Agent", "Mozilla/5.0")
@@ -20,7 +21,8 @@ object StockPriceHelper {
             val response = client.newCall(request).execute()
             val body = response.body?.string() ?: return null
             val json = JSONObject(body)
-            json.getJSONObject("chart").getJSONArray("result").getJSONObject(0).getJSONObject("meta")
+            json.getJSONObject("chart").getJSONArray("result").getJSONObject(0)
+                .getJSONObject("meta")
         } catch (e: Exception) {
             null
         }
@@ -57,22 +59,29 @@ object StockPriceHelper {
         }
     }
 
-    suspend fun getHistoricalPrices(emiten: String, period1: Long, period2: Long): Map<Int, Double> {
+    suspend fun getHistoricalPrices(
+        emiten: String,
+        period1: Long,
+        period2: Long
+    ): Map<Int, Double> {
         return try {
             val symbol = buildSymbol(emiten)
-            val url = "https://query1.finance.yahoo.com/v8/finance/chart/$symbol?period1=$period1&period2=$period2&interval=1d"
+            val url =
+                "https://query1.finance.yahoo.com/v8/finance/chart/$symbol?period1=$period1&period2=$period2&interval=1d"
             val request = Request.Builder().url(url).addHeader("User-Agent", "Mozilla/5.0").build()
             val response = client.newCall(request).execute()
             val body = response.body?.string() ?: return emptyMap()
-            
+
             val json = JSONObject(body)
             val resObj = json.getJSONObject("chart").getJSONArray("result").getJSONObject(0)
             val timestamps = resObj.optJSONArray("timestamp") ?: return emptyMap()
-            val closeArray = resObj.getJSONObject("indicators").getJSONArray("quote").getJSONObject(0).getJSONArray("close")
+            val closeArray =
+                resObj.getJSONObject("indicators").getJSONArray("quote").getJSONObject(0)
+                    .getJSONArray("close")
 
             val priceMap = mutableMapOf<Int, Double>()
             val cal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Jakarta"))
-            
+
             for (i in 0 until timestamps.length()) {
                 if (!closeArray.isNull(i)) {
                     cal.timeInMillis = timestamps.getLong(i) * 1000
@@ -89,7 +98,8 @@ object StockPriceHelper {
     suspend fun getMonthlyHistoricalPrices(emiten: String): Map<Int, Double> {
         return try {
             val symbol = buildSymbol(emiten)
-            val url = "https://query1.finance.yahoo.com/v8/finance/chart/$symbol?range=1y&interval=1mo"
+            val url =
+                "https://query1.finance.yahoo.com/v8/finance/chart/$symbol?range=1y&interval=1mo"
             val request = Request.Builder().url(url).addHeader("User-Agent", "Mozilla/5.0").build()
             val response = client.newCall(request).execute()
             val body = response.body?.string() ?: return emptyMap()
@@ -97,7 +107,9 @@ object StockPriceHelper {
             val json = JSONObject(body)
             val resObj = json.getJSONObject("chart").getJSONArray("result").getJSONObject(0)
             val timestamps = resObj.optJSONArray("timestamp") ?: return emptyMap()
-            val closeArray = resObj.getJSONObject("indicators").getJSONArray("quote").getJSONObject(0).getJSONArray("close")
+            val closeArray =
+                resObj.getJSONObject("indicators").getJSONArray("quote").getJSONObject(0)
+                    .getJSONArray("close")
 
             val priceMap = mutableMapOf<Int, Double>()
             val cal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Jakarta"))
