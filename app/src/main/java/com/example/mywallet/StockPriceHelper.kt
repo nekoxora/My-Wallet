@@ -31,6 +31,10 @@ object StockPriceHelper {
         return getMeta(symbol)?.optDouble("regularMarketPrice")?.takeIf { !it.isNaN() }
     }
 
+    suspend fun getHargaLiveWithMeta(symbol: String): JSONObject? {
+        return getMeta(symbol)
+    }
+
     suspend fun getPersentaseLive(symbol: String): String? {
         return try {
             val meta = getMeta(symbol) ?: return null

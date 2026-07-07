@@ -36,6 +36,16 @@ class MainActivity : ComponentActivity() {
             beritaWorkRequest
         )
 
+        val priceAlertWorkRequest = PeriodicWorkRequestBuilder<PriceAlertWorker>(
+            15, TimeUnit.MINUTES
+        ).build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "price_alert_check",
+            ExistingPeriodicWorkPolicy.KEEP,
+            priceAlertWorkRequest
+        )
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val requestPermissionLauncher = registerForActivityResult(
                 ActivityResultContracts.RequestPermission()

@@ -85,7 +85,6 @@ fun RincianScreen(
 
     LaunchedEffect(refreshTrigger, selectedChartType) {
         try {
-            if (refreshTrigger > 0) isRefreshing = true
 
             val deviceId = DeviceIdHelper.getDeviceId(context)
             listTransaksi = RetrofitClient.instance.getHistori(deviceId)
@@ -229,7 +228,7 @@ fun RincianScreen(
                 historicalDataPoints = aggregatedPoints
             }
 
-            if (refreshTrigger > 0) kotlinx.coroutines.delay(800)
+            if (isRefreshing) kotlinx.coroutines.delay(800)
             isRefreshing = false
         } catch (e: Exception) {
             Toast.makeText(context, "Gagal memuat data", Toast.LENGTH_SHORT).show()
@@ -342,7 +341,10 @@ fun RincianScreen(
                 } else {
                     PullToRefreshBox(
                         isRefreshing = isRefreshing,
-                        onRefresh = { refreshTrigger++ },
+                        onRefresh = {
+                            isRefreshing = true
+                            refreshTrigger++
+                        },
                         state = pullState,
                         modifier = Modifier
                             .fillMaxSize()

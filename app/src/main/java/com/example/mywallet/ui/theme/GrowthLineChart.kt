@@ -18,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -42,8 +43,9 @@ fun GrowthLineChart(
 
     val density = LocalDensity.current
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
-    
-    val indonesianMonths = listOf("Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des")
+
+    val indonesianMonths =
+        listOf("Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des")
 
     val textPaint = Paint().apply {
         color = android.graphics.Color.parseColor("#A0A0B5")
@@ -79,7 +81,7 @@ fun GrowthLineChart(
                 }
 
                 detectTapGestures(
-                    onPress = { 
+                    onPress = {
                         updateIndex(it.x)
                         tryAwaitRelease()
                         selectedIndex = null
@@ -122,7 +124,7 @@ fun GrowthLineChart(
             val chartWidth = width - paddingLeft
             val chartHeight = height - paddingBottom - paddingTop
 
-            val minVal = 0.0 
+            val minVal = 0.0
             val maxVal = (dataPoints.maxOrNull() ?: 0.0) * 1.1
             val range = if (maxVal - minVal == 0.0) 1.0 else maxVal - minVal
 
@@ -135,7 +137,7 @@ fun GrowthLineChart(
                     end = Offset(width, y),
                     strokeWidth = 1.dp.toPx()
                 )
-                
+
                 val labelVal = minVal + (i * range / gridCount)
                 val formattedLabel = formatPriceLabel(labelVal)
                 drawContext.canvas.nativeCanvas.drawText(
@@ -148,7 +150,8 @@ fun GrowthLineChart(
 
             if (chartType == ChartType.MONTHLY) {
                 for (day in 1..maxPoints) {
-                    val x = paddingLeft + ((day - 1) * chartWidth / (maxPoints - 1).coerceAtLeast(1))
+                    val x =
+                        paddingLeft + ((day - 1) * chartWidth / (maxPoints - 1).coerceAtLeast(1))
                     if (day == 1 || day == 8 || day == 15 || day == 22 || day == 29 || day == maxPoints) {
                         drawContext.canvas.nativeCanvas.drawText(
                             "$day",
@@ -173,7 +176,8 @@ fun GrowthLineChart(
             val path = Path()
             dataPoints.forEachIndexed { index, value ->
                 val x = paddingLeft + (index * chartWidth / (maxPoints - 1).coerceAtLeast(1))
-                val y = paddingTop + chartHeight - ((value - minVal) / range * chartHeight).toFloat()
+                val y =
+                    paddingTop + chartHeight - ((value - minVal) / range * chartHeight).toFloat()
 
                 if (index == 0) {
                     path.moveTo(x, y)
@@ -188,11 +192,37 @@ fun GrowthLineChart(
                 style = Stroke(width = 2.5.dp.toPx())
             )
 
+            if (dataPoints.size > 1) {
+                val fillPath = Path().apply {
+                    addPath(path)
+                    val lastX =
+                        paddingLeft + ((dataPoints.size - 1) * chartWidth / (maxPoints - 1).coerceAtLeast(
+                            1
+                        ))
+                    lineTo(lastX, paddingTop + chartHeight)
+                    lineTo(paddingLeft, paddingTop + chartHeight)
+                    close()
+                }
+
+                drawPath(
+                    path = fillPath,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFF06B6D4).copy(alpha = 0.3f),
+                            Color.Transparent
+                        ),
+                        startY = paddingTop,
+                        endY = paddingTop + chartHeight
+                    )
+                )
+            }
+
             selectedIndex?.let { index ->
                 if (index < dataPoints.size) {
                     val x = paddingLeft + (index * chartWidth / (maxPoints - 1).coerceAtLeast(1))
                     val value = dataPoints[index]
-                    val y = paddingTop + chartHeight - ((value - minVal) / range * chartHeight).toFloat()
+                    val y =
+                        paddingTop + chartHeight - ((value - minVal) / range * chartHeight).toFloat()
 
                     drawLine(
                         color = Color.White.copy(alpha = 0.4f),
@@ -201,16 +231,24 @@ fun GrowthLineChart(
                         strokeWidth = 1.dp.toPx()
                     )
 
-                    drawCircle(color = Color(0xFF06B6D4), radius = 5.dp.toPx(), center = Offset(x, y))
+                    drawCircle(
+                        color = Color(0xFF06B6D4),
+                        radius = 5.dp.toPx(),
+                        center = Offset(x, y)
+                    )
                     drawCircle(color = Color.White, radius = 2.dp.toPx(), center = Offset(x, y))
 
                     val localeId = Locale.forLanguageTag("id-ID")
-                    val labelPrefix = if (chartType == ChartType.MONTHLY) "${index + 1} $monthName" else indonesianMonths[index]
-                    val tooltipText = "$labelPrefix: Rp${String.format(localeId, "%,d", value.toLong()).replace(',', '.')}"
-                    
+                    val labelPrefix =
+                        if (chartType == ChartType.MONTHLY) "${index + 1} $monthName" else indonesianMonths[index]
+                    val tooltipText = "$labelPrefix: Rp${
+                        String.format(localeId, "%,d", value.toLong()).replace(',', '.')
+                    }"
+
                     val tooltipWidth = tooltipPaint.measureText(tooltipText) + 20.dp.toPx()
                     val tooltipHeight = 35.dp.toPx()
-                    var tooltipX = (x - (tooltipWidth / 2)).coerceIn(paddingLeft, width - tooltipWidth)
+                    var tooltipX =
+                        (x - (tooltipWidth / 2)).coerceIn(paddingLeft, width - tooltipWidth)
                     val tooltipY = (y - tooltipHeight - 10.dp.toPx()).coerceAtLeast(5.dp.toPx())
 
                     drawRoundRect(
