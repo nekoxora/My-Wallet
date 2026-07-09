@@ -129,7 +129,6 @@ fun DashboardScreen(
     var isRefreshing by remember { mutableStateOf(false) }
     var refreshTrigger by remember { mutableIntStateOf(0) }
     val pullState = rememberPullToRefreshState()
-    
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -243,7 +242,6 @@ fun DashboardScreen(
             }
 
             hargaLiveMap = mapBaru
-            
             try {
                 val beritaResponse = RetrofitClient.instance.getBerita()
                 if (beritaResponse.status == "success") {
@@ -270,7 +268,6 @@ fun DashboardScreen(
 
             if (refreshTrigger > 0) kotlinx.coroutines.delay(800)
             isRefreshing = false
-
         } catch (e: Exception) {
             Toast.makeText(context, "Gagal mengambil data: ${e.message}", Toast.LENGTH_SHORT).show()
         } finally {

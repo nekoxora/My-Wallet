@@ -14,14 +14,11 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 object ChatBotService {
-
     private const val PROXY_URL = "http://43.133.150.113/api_keuangan/chatbot.php"
-
     private const val RSS_URL = "http://43.133.150.113/api_keuangan/get_berita_rss.php"
-
     private val indexMap = mapOf(
         "IHSG" to "^JKSE",
-        "LQ45" to "^JKLQ45"
+        "LQ45" to "^JKLQ45",
     )
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
@@ -104,7 +101,7 @@ object ChatBotService {
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("GEMINI_DEBUG", "Gagal fetch berita: \${e.localizedMessage}")
+            android.util.Log.e("GEMINI_DEBUG", "Gagal fetch berita: ${e.localizedMessage}")
         }
         return@withContext beritaArray
     }
@@ -116,7 +113,6 @@ object ChatBotService {
     ): String = withContext(Dispatchers.IO) {
         try {
             val hargaLiveArray = fetchHargaLiveList(userInput, portofolioEmitenList)
-
             val beritaArray = fetchBeritaList()
 
             android.util.Log.d("GEMINI_DEBUG", "Harga live dikirim: $hargaLiveArray")
@@ -160,13 +156,13 @@ object ChatBotService {
                             "error",
                             "Error Code: ${response.code}"
                         )
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         "Terjadi kesalahan server (Code: ${response.code})"
                     }
                     return@use "Error: $errorMessage"
                 }
             }
-        } catch (e: IOException) {
+        } catch (_: IOException) {
             "Error: Gagal terhubung ke server. Cek koneksi internet Anda."
         } catch (e: Exception) {
             "Error: ${e.localizedMessage ?: "Terjadi kesalahan tidak terduga."}"

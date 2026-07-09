@@ -13,7 +13,7 @@ fun saveImageToInternalStorage(context: Context, uri: Uri): String? {
         inputStream.close()
         outputStream.close()
         file.absolutePath
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         null
     }
 }

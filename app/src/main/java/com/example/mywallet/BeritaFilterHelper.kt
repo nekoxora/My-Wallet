@@ -11,7 +11,7 @@ object BeritaFilterHelper {
     )
 
     fun isBeritaRelevant(berita: BeritaSaham, userEmitens: Set<String>): Boolean {
-        val emitenBerita = berita.emiten?.uppercase()?.trim() ?: ""
+        val emitenBerita = berita.emiten.uppercase().trim()
 
         if (emitenBerita.isEmpty() && berita.judul.contains("IPO", ignoreCase = true)) return true
 

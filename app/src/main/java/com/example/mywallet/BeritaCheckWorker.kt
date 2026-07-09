@@ -52,7 +52,7 @@ class BeritaCheckWorker(
                     }
                 }
                 Result.success()
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 Result.retry()
             }
         }

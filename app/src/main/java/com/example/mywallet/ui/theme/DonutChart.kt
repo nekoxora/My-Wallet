@@ -92,13 +92,15 @@ fun CustomDonutChart(
                             var currentAngle = 0f
                             var hitEmiten: String? = null
 
-                            for ((emiten, nilai) in emitenValueMap) {
-                                val sweepAngle = (nilai.toFloat() / totalSemuaAset.toFloat()) * 360f
-                                if (normalizedTap >= currentAngle && normalizedTap <= currentAngle + sweepAngle) {
-                                    hitEmiten = emiten
-                                    break
+                            if (totalSemuaAset > 0) {
+                                for ((emiten, nilai) in emitenValueMap) {
+                                    val sweepAngle = (nilai.toFloat() / totalSemuaAset.toFloat()) * 360f
+                                    if (normalizedTap >= currentAngle && normalizedTap <= currentAngle + sweepAngle) {
+                                        hitEmiten = emiten
+                                        break
+                                    }
+                                    currentAngle += sweepAngle
                                 }
-                                currentAngle += sweepAngle
                             }
 
                             selectedEmiten = if (selectedEmiten == hitEmiten) null else hitEmiten

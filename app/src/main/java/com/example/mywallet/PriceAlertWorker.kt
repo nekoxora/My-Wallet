@@ -43,7 +43,7 @@ class PriceAlertWorker(
 
                 val meta = try {
                     StockPriceHelper.getHargaLiveWithMeta(symbol)
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     null
                 } ?: return@forEach
 
@@ -69,7 +69,7 @@ class PriceAlertWorker(
             }
 
             Result.success()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             Result.retry()
         }
     }

@@ -4,7 +4,7 @@ data class InvestasiData(
     val device_id: String,
     val kode_emiten: String,
     val jumlah_lot: Int,
-    val harga_beli: Double
+    val harga_beli: Double,
 )
 
 data class DeleteData(

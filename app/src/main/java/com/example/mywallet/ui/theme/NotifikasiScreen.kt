@@ -62,22 +62,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 
-fun toYahooSymbol(emiten: String): String {
-    return when (emiten.uppercase().trim()) {
-        "IHSG" -> "^JKSE"
-        "GOLD" -> ""
-        "WTI OIL" -> "CL=F"
-        "COAL" -> ""
-        "USD/IDR" -> ""
-        "DJIA" -> "^DJI"
-        "NASDAQ" -> "^IXIC"
-        "S&P500" -> "^GSPC"
-        "BI RATE" -> ""
-        "BIG CAPS" -> ""
-        else -> "${emiten.uppercase().trim()}.JK"
-    }
-}
-
 @Composable
 fun NotifikasiScreen(onBack: () -> Unit) {
     var beritaTampil by remember { mutableStateOf<List<BeritaSaham>>(emptyList()) }
@@ -114,8 +98,7 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                     listFiltered.map { berita ->
                         async(Dispatchers.IO) {
                             try {
-                                val symbol = toYahooSymbol(berita.emiten)
-                                if (symbol.isEmpty()) return@async berita
+                                val symbol = StockPriceHelper.buildSymbol(berita.emiten)
 
                                 var hargaLive = StockPriceHelper.getHargaLive(symbol)
                                 val persentaseLive = StockPriceHelper.getPersentaseLive(symbol)
