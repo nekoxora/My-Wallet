@@ -68,16 +68,15 @@ import com.example.mywallet.data.DeleteData
 import com.example.mywallet.data.RetrofitClient
 import com.example.mywallet.data.Transaksi
 import com.example.mywallet.data.saveImageToInternalStorage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
-fun IconNotification(
-    jumlahNotif: Int,
-    onClick: () -> Unit
-) {
+fun IconNotification(jumlahNotif: Int, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .size(36.dp)
@@ -90,14 +89,12 @@ fun IconNotification(
             tint = Color.White,
             modifier = Modifier.size(24.dp)
         )
-
         if (jumlahNotif > 0) {
-            val badgeText = if (jumlahNotif > 99) "99+" else jumlahNotif.toString()
-            val badgeWidth = if (jumlahNotif > 99) 30.dp else if (jumlahNotif > 9) 20.dp else 16.dp
-
+            val txt = if (jumlahNotif > 99) "99+" else jumlahNotif.toString()
+            val w = if (jumlahNotif > 99) 30.dp else if (jumlahNotif > 9) 20.dp else 16.dp
             Box(
                 modifier = Modifier
-                    .size(width = badgeWidth, height = 16.dp)
+                    .size(width = w, height = 16.dp)
                     .align(Alignment.TopEnd)
                     .offset(x = 4.dp, y = (-2).dp)
                     .clip(RoundedCornerShape(8.dp))
@@ -106,7 +103,7 @@ fun IconNotification(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = badgeText,
+                    text = txt,
                     color = Color.White,
                     fontSize = 8.sp,
                     fontWeight = FontWeight.Bold,
@@ -128,53 +125,34 @@ fun DashboardScreen(
     var hargaLiveMap by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
     var isRefreshing by remember { mutableStateOf(false) }
     var refreshTrigger by remember { mutableIntStateOf(0) }
-    val pullState = rememberPullToRefreshState()
-    val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
-    val density = LocalDensity.current
-    val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-    val groupedTransactions by remember(listTransaksi) {
+    val pullState = rememberPullToRefreshState();
+    val scp = rememberCoroutineScope();
+    val ctx = LocalContext.current;
+    val dens = LocalDensity.current;
+    val prefs = ctx.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+    val grouped by remember(listTransaksi) {
         derivedStateOf {
             listTransaksi.groupBy { it.emiten.uppercase() }
-                .map { (emiten, transactions) ->
-                    val totalLot = transactions.sumOf { it.lot }
-                    transactions.first().copy(
-                        emiten = emiten,
-                        lot = totalLot
-                    )
-                }
+                .map { (e, txs) -> txs.first().copy(emiten = e, lot = txs.sumOf { it.lot }) }
         }
     }
-
-    var jumlahNotif by remember { mutableStateOf(0) }
-    var currentRelevantNotifIds by remember { mutableStateOf<Set<String>>(emptySet()) }
-
-    var profileImagePath by remember {
-        val saved = prefs.getString("profile_path", null)
-        mutableStateOf(saved)
-    }
-
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
-    ) { uri: android.net.Uri? ->
-        uri?.let {
-            val path = saveImageToInternalStorage(context, it)
-            if (path != null) {
-                profileImagePath = path
-                prefs.edit().putString("profile_path", path).apply()
+    var jumlahNotif by remember { mutableIntStateOf(0) };
+    var relevantNotifIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var profilePath by remember { mutableStateOf(prefs.getString("profile_path", null)) }
+    val gallery =
+        rememberLauncherForActivityResult(contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()) { uri: android.net.Uri? ->
+            uri?.let {
+                val p = saveImageToInternalStorage(ctx, it); if (p != null) {
+                profilePath = p; prefs.edit().putString("profile_path", p).apply()
+            }
             }
         }
-    }
-
-    var namaUser by remember {
-        mutableStateOf(prefs.getString("nama_user", "User") ?: "User")
-    }
-    var showEditNama by remember { mutableStateOf(false) }
-    var inputNama by remember { mutableStateOf("") }
-
-    if (showEditNama) {
+    var name by remember { mutableStateOf(prefs.getString("nama_user", "User") ?: "User") };
+    var showEdit by remember { mutableStateOf(false) };
+    var input by remember { mutableStateOf("") }
+    if (showEdit) {
         AlertDialog(
-            onDismissRequest = { showEditNama = false },
+            onDismissRequest = { showEdit = false },
             containerColor = CardDark,
             title = {
                 Text(
@@ -188,8 +166,8 @@ fun DashboardScreen(
             },
             text = {
                 OutlinedTextField(
-                    value = inputNama,
-                    onValueChange = { inputNama = it },
+                    value = input,
+                    onValueChange = { input = it },
                     label = { Text("Nama baru", color = TextGray) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
@@ -201,80 +179,67 @@ fun DashboardScreen(
                         unfocusedLabelColor = TextGray,
                         cursorColor = Color.White
                     ),
-                    shape = RoundedCornerShape(15.dp),
+                    shape = RoundedCornerShape(15.dp)
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
-                    if (inputNama.isNotBlank()) {
-                        namaUser = inputNama
-                        prefs.edit().putString("nama_user", inputNama).apply()
-                    }
-                    showEditNama = false
-                }) {
-                    Text("Simpan", color = RingColor)
-                }
+                    if (input.isNotBlank()) {
+                        name = input; prefs.edit().putString("nama_user", input).apply()
+                    }; showEdit = false
+                }) { Text("Simpan", color = RingColor) }
             },
             dismissButton = {
-                TextButton(onClick = { showEditNama = false }) {
-                    Text("Batal", color = TextGray)
+                TextButton(onClick = { showEdit = false }) {
+                    Text(
+                        "Batal",
+                        color = TextGray
+                    )
                 }
-            }
-        )
+            })
     }
-
     LaunchedEffect(refreshTrigger) {
         try {
             if (refreshTrigger > 0) isRefreshing = true
-            
-            val deviceId = DeviceIdHelper.getDeviceId(context)
-            listTransaksi = RetrofitClient.instance.getHistori(deviceId)
-            val emitenUnik = listTransaksi.map { it.emiten.uppercase() }.distinct()
-
-            val mapBaru = coroutineScope {
-                emitenUnik.map { emiten ->
-                    async(kotlinx.coroutines.Dispatchers.IO) {
-                        StockPriceHelper.getHargaLive(emiten) to emiten
+            val id = DeviceIdHelper.getDeviceId(ctx); listTransaksi =
+                RetrofitClient.instance.getHistori(id);
+            val uni = listTransaksi.map { it.emiten.uppercase() }.distinct()
+            hargaLiveMap = coroutineScope {
+                uni.map { e ->
+                    async(Dispatchers.IO) {
+                        StockPriceHelper.getHargaLive(e) to e
                     }
-                }.awaitAll()
-                    .filter { it.first != null }
-                    .associate { it.second to it.first!! }
+                }.awaitAll().filter { it.first != null }.associate { it.second to it.first!! }
             }
-
-            hargaLiveMap = mapBaru
             try {
-                val beritaResponse = RetrofitClient.instance.getBerita()
-                if (beritaResponse.status == "success") {
-                    val idCleared = prefs.getStringSet("cleared_berita_ids", emptySet()) ?: emptySet()
-                    val idTerbaca = prefs.getStringSet("notif_id_terbaca", emptySet()) ?: emptySet()
-                    val userEmitens = listTransaksi.map { it.emiten.uppercase().trim() }.toSet()
-
-                    val beritaRelevan = beritaResponse.data.filter {
-                        it.id !in idCleared && BeritaFilterHelper.isBeritaRelevant(it, userEmitens)
+                val res = RetrofitClient.instance.getBerita()
+                if (res.status == "success") {
+                    val clr = prefs.getStringSet("cleared_berita_ids", emptySet()) ?: emptySet();
+                    val rd = prefs.getStringSet("notif_id_terbaca", emptySet()) ?: emptySet();
+                    val userE = listTransaksi.map { it.emiten.uppercase().trim() }.toSet()
+                    val rel = res.data.filter {
+                        it.id !in clr && BeritaFilterHelper.isBeritaRelevant(
+                            it,
+                            userE
+                        )
                     }
-
-                    currentRelevantNotifIds = beritaRelevan.map { it.id }.toSet()
-                    val beritaBelumTerbaca = beritaRelevan.filter { it.id !in idTerbaca }
-                    jumlahNotif = beritaBelumTerbaca.size
-
-                    val semuaIdSekarang = beritaResponse.data.map { it.id }.toSet()
-                    val idTerkirimSebelumnya = prefs.getStringSet("notif_id_terkirim", emptySet()) ?: emptySet()
-                    val updatedTerkirim = idTerkirimSebelumnya + semuaIdSekarang
-
-                    prefs.edit().putStringSet("notif_id_terkirim", updatedTerkirim).apply()
+                    relevantNotifIds = rel.map { it.id }.toSet(); jumlahNotif =
+                        rel.count { it.id !in rd }
+                    val all = res.data.map { it.id }.toSet();
+                    val upd =
+                        (prefs.getStringSet("notif_id_terkirim", emptySet()) ?: emptySet()) + all
+                    prefs.edit().putStringSet("notif_id_terkirim", upd).apply()
                 }
             } catch (_: Exception) {
             }
-
-            if (refreshTrigger > 0) kotlinx.coroutines.delay(800)
+            if (refreshTrigger > 0) delay(800)
             isRefreshing = false
         } catch (e: Exception) {
-            Toast.makeText(context, "Gagal mengambil data: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(ctx, "Gagal", Toast.LENGTH_SHORT).show()
         } finally {
             isRefreshing = false
         }
     }
-
     Scaffold(
         containerColor = BgDark,
         floatingActionButton = {
@@ -284,9 +249,7 @@ fun DashboardScreen(
                 contentColor = Color.White,
                 shape = RoundedCornerShape(50),
                 modifier = Modifier.offset(y = 55.dp)
-            ) {
-                Text("+", fontSize = 32.sp, fontWeight = FontWeight.Bold)
-            }
+            ) { Text("+", fontSize = 32.sp, fontWeight = FontWeight.Bold) }
         },
         floatingActionButtonPosition = FabPosition.Center,
         bottomBar = {
@@ -312,19 +275,17 @@ fun DashboardScreen(
                             tint = Color(0xFF06B6D4),
                             modifier = Modifier.size(25.dp)
                         )
-                    }
-                    IconButton(onClick = onNavigateToRincian) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.chartsvg),
-                            contentDescription = "Rincian",
-                            tint = Color.White,
-                            modifier = Modifier.size(25.dp)
-                        )
-                    }
+                    }; IconButton(onClick = onNavigateToRincian) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.chartsvg),
+                        contentDescription = "Rincian",
+                        tint = Color.White,
+                        modifier = Modifier.size(25.dp)
+                    )
+                }
                 }
             }
-        }
-    ) { padding ->
+        }) { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
@@ -333,7 +294,6 @@ fun DashboardScreen(
                     .padding(horizontal = 24.dp)
             ) {
                 Spacer(modifier = Modifier.height(10.dp))
-
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -341,141 +301,97 @@ fun DashboardScreen(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Image(
-                            painter = if (profileImagePath != null)
-                                rememberAsyncImagePainter(java.io.File(profileImagePath!!))
-                            else
-                                painterResource(id = R.drawable.profile),
-                            contentDescription = "Profile Photo",
+                            painter = if (profilePath != null) rememberAsyncImagePainter(
+                                java.io.File(
+                                    profilePath!!
+                                )
+                            ) else painterResource(id = R.drawable.profile),
+                            contentDescription = "Profile",
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .size(48.dp)
                                 .clip(CircleShape)
-                                .border(2.dp, color = Purple40, CircleShape)
-                                .clickable { galleryLauncher.launch("image/*") }
-                        )
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Column(
-                            modifier = Modifier.clickable {
-                                inputNama = namaUser
-                                showEditNama = true
-                            }
-                        ) {
-                            Text(text = "Welcome back!", color = TextGray, fontSize = 13.sp)
-                            Text(
-                                text = namaUser,
-                                color = Color.White,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                                .border(2.dp, Purple40, CircleShape)
+                                .clickable { gallery.launch("image/*") })
+                        Spacer(modifier = Modifier.width(12.dp)); Column(modifier = Modifier.clickable {
+                        input = name; showEdit = true
+                    }) {
+                        Text("Welcome back!", color = TextGray, fontSize = 13.sp); Text(
+                        name,
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    }
                     }
                     IconNotification(
                         jumlahNotif = jumlahNotif,
                         onClick = {
-                            val updatedTerbaca = (prefs.getStringSet("notif_id_terbaca", emptySet())
-                                ?: emptySet()) + currentRelevantNotifIds
-                            prefs.edit().putStringSet("notif_id_terbaca", updatedTerbaca).apply()
-
-                            jumlahNotif = 0
-                            onNavigateToNotifikasi()
-                        }
-                    )
+                            val upd = (prefs.getStringSet("notif_id_terbaca", emptySet())
+                                ?: emptySet()) + relevantNotifIds; prefs.edit()
+                            .putStringSet("notif_id_terbaca", upd).apply(); jumlahNotif =
+                            0; onNavigateToNotifikasi()
+                        })
                 }
-
-                Spacer(modifier = Modifier.height(50.dp))
-
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CustomDonutChart(
-                        listTransaksi = listTransaksi,
-                        hargaLiveMap = hargaLiveMap
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(40.dp))
-
-                Text(
-                    text = "My Investment",
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
+                Spacer(modifier = Modifier.height(50.dp)); Box(
+                modifier = Modifier.fillMaxWidth(),
+                Alignment.Center
+            ) { CustomDonutChart(listTransaksi, hargaLiveMap) }
+                Spacer(modifier = Modifier.height(40.dp)); Text(
+                "My Investment",
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            ); Spacer(modifier = Modifier.height(16.dp))
                 PullToRefreshBox(
-                    isRefreshing = isRefreshing,
-                    onRefresh = { refreshTrigger++ },
+                    isRefreshing,
+                    { refreshTrigger++ },
                     state = pullState,
-                    modifier = Modifier.fillMaxSize().clipToBounds(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clipToBounds(),
                     indicator = {
-                        if (isRefreshing) {
-                            PullToRefreshDefaults.Indicator(
-                                state = pullState,
-                                isRefreshing = isRefreshing,
-                                modifier = Modifier.align(Alignment.TopCenter)
-                            )
-                        }
-                    }
+                        if (isRefreshing) PullToRefreshDefaults.Indicator(
+                            pullState,
+                            isRefreshing,
+                            Modifier.align(Alignment.TopCenter)
+                        )
+                    }) {
+                    val drag =
+                        if (isRefreshing || pullState.isAnimating) 0f else with(dens) { pullState.distanceFraction * 80.dp.toPx() }; LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { translationY = drag },
+                    contentPadding = PaddingValues(bottom = 100.dp)
                 ) {
-                    val dragAmount = if (isRefreshing || pullState.isAnimating) 0f else with(density) { pullState.distanceFraction * 80.dp.toPx() }
-                    
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                translationY = dragAmount
-                            },
-                        contentPadding = PaddingValues(bottom = 100.dp)
-                    ) {
-                        items(groupedTransactions, key = { it.emiten }) { transaksi ->
-                            SwipeableInvestmentCard(
-                                transaksi = transaksi,
-                                onDelete = {
-                                    coroutineScope.launch {
-                                        try {
-                                            val deviceId = DeviceIdHelper.getDeviceId(context)
-                                            val dataHapus =
-                                                DeleteData(
-                                                    device_id = deviceId,
-                                                    emiten = transaksi.emiten
-                                                )
-                                            val response =
-                                                RetrofitClient.instance.hapusInvestasi(dataHapus)
-                                            if (response.status == "success") {
-                                                listTransaksi =
-                                                    RetrofitClient.instance.getHistori(deviceId)
-                                                Toast.makeText(
-                                                    context,
-                                                    "Investasi ${transaksi.emiten} berhasil dihapus",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            } else {
-                                                Toast.makeText(
-                                                    context,
-                                                    "Server Error: ${response.message}",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            }
-                                        } catch (e: Exception) {
-                                            Toast.makeText(
-                                                context,
-                                                "Error: ${e.localizedMessage}",
+                    items(grouped, key = { it.emiten }) { tx ->
+                        SwipeableInvestmentCard(
+                            tx,
+                            onDelete = {
+                                scp.launch {
+                                    try {
+                                        val id =
+                                            DeviceIdHelper.getDeviceId(ctx); if (RetrofitClient.instance.hapusInvestasi(
+                                                DeleteData(id, tx.emiten)
+                                            ).status == "success"
+                                        ) {
+                                            listTransaksi =
+                                                RetrofitClient.instance.getHistori(id); Toast.makeText(
+                                                ctx,
+                                                "Dihapus",
                                                 Toast.LENGTH_SHORT
                                             ).show()
                                         }
+                                    } catch (e: Exception) {
+                                        Toast.makeText(ctx, "Error", Toast.LENGTH_SHORT).show()
                                     }
                                 }
-                            )
-                        }
+                            })
                     }
                 }
+                }
             }
-
-            Box(modifier = Modifier.align(Alignment.BottomEnd)) {
-                DraggableBotIcon(onClick = onNavigateToChat)
-            }
+            Box(modifier = Modifier.align(Alignment.BottomEnd)) { DraggableBotIcon { onNavigateToChat() } }
         }
     }
 }

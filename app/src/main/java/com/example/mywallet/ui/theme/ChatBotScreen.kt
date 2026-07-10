@@ -59,47 +59,38 @@ data class PesanChat(val teks: String, val dariUser: Boolean)
 
 @Composable
 fun ChatBotScreen(onBack: () -> Unit) {
-    var inputTeks by remember { mutableStateOf("") }
-    val context = LocalContext.current
-    val scrollState = rememberLazyListState()
-    val coroutineScope = rememberCoroutineScope()
-
+    var inputTeks by remember { mutableStateOf("") };
+    val context = LocalContext.current;
+    val scrollState = rememberLazyListState();
+    val scope = rememberCoroutineScope()
     val daftarPesan = remember {
         mutableStateListOf(
             PesanChat(
-                "Halo! Saya Elysia, asisten finansial cerdas Anda. Apakah ada yang bisa saya bantu hari ini?",
+                "Halo! Saya Elysia, asisten finansial cerdas Anda. Ada yang bisa saya bantu hari ini?",
                 false
             )
         )
     }
-
-    var isBotTyping by remember { mutableStateOf(false) }
-
+    var isBotTyping by remember { mutableStateOf(false) };
     var portofolioEmitenList by remember { mutableStateOf<List<String>>(emptyList()) }
-
     LaunchedEffect(Unit) {
         try {
-            val deviceId = DeviceIdHelper.getDeviceId(context)
-            val listTransaksi = RetrofitClient.instance.getHistori(deviceId)
-            portofolioEmitenList = listTransaksi.map { it.emiten }.distinct()
+            val id = DeviceIdHelper.getDeviceId(context); portofolioEmitenList =
+                RetrofitClient.instance.getHistori(id).map { it.emiten }.distinct()
         } catch (e: Exception) {
-            android.util.Log.e("CHAT_DEBUG", "Gagal memuat daftar emiten portofolio: ${e.message}")
         }
     }
-
-    val templateTeks = listOf(
+    val templates = listOf(
         "Analisa portofolio saya",
         "Analisa saham hari ini",
         "Tips investasi pemula",
         "Apa itu IHSG?"
     )
-
     LaunchedEffect(daftarPesan.size) {
-        if (daftarPesan.isNotEmpty()) {
-            scrollState.animateScrollToItem(daftarPesan.size - 1)
-        }
+        if (daftarPesan.isNotEmpty()) scrollState.animateScrollToItem(
+            daftarPesan.size - 1
+        )
     }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -122,15 +113,13 @@ fun ChatBotScreen(onBack: () -> Unit) {
                     modifier = Modifier.size(24.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Smart AI Analyst",
-                color = Color.White,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Spacer(modifier = Modifier.width(8.dp)); Text(
+            text = "Smart AI Analyst",
+            color = Color.White,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold
+        )
         }
-
         LazyColumn(
             state = scrollState,
             modifier = Modifier
@@ -150,21 +139,22 @@ fun ChatBotScreen(onBack: () -> Unit) {
                             modifier = Modifier.size(16.dp),
                             color = RingColor,
                             strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Bot sedang berpikir...", color = TextGray, fontSize = 12.sp)
+                        ); Spacer(modifier = Modifier.width(8.dp)); Text(
+                        "Bot sedang berpikir...",
+                        color = TextGray,
+                        fontSize = 12.sp
+                    )
                     }
                 }
             }
         }
-
         LazyRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(templateTeks) { template ->
+            items(templates) { tmp ->
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
@@ -172,21 +162,19 @@ fun ChatBotScreen(onBack: () -> Unit) {
                         .border(1.dp, RingColor, RoundedCornerShape(20.dp))
                         .clickable {
                             if (!isBotTyping) {
-                                daftarPesan.add(PesanChat(template, true))
-                                kirimPesanKeBot(
-                                    template,
+                                daftarPesan.add(PesanChat(tmp, true)); kirimPesanKeBot(
+                                    tmp,
                                     context,
                                     daftarPesan,
                                     portofolioEmitenList,
-                                    coroutineScope
+                                    scope
                                 ) { isBotTyping = it }
                             }
                         }
                         .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) { Text(text = template, color = Color.White, fontSize = 13.sp) }
+                ) { Text(text = tmp, color = Color.White, fontSize = 13.sp) }
             }
         }
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -194,7 +182,8 @@ fun ChatBotScreen(onBack: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(
-                value = inputTeks, onValueChange = { inputTeks = it },
+                value = inputTeks,
+                onValueChange = { inputTeks = it },
                 modifier = Modifier.weight(1f),
                 placeholder = { Text("Tanya analisis saham...", color = TextGray) },
                 colors = OutlinedTextFieldDefaults.colors(
@@ -206,71 +195,67 @@ fun ChatBotScreen(onBack: () -> Unit) {
                 ),
                 shape = RoundedCornerShape(25.dp)
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            IconButton(
-                onClick = {
-                    if (inputTeks.isNotBlank() && !isBotTyping) {
-                        val userMessage = inputTeks
-                        daftarPesan.add(PesanChat(userMessage, true))
-                        inputTeks = ""
-                        kirimPesanKeBot(
-                            userMessage,
-                            context,
-                            daftarPesan,
-                            portofolioEmitenList,
-                            coroutineScope
-                        ) { isBotTyping = it }
-                    }
-                },
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(RingColor)
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.arrow_up),
-                    contentDescription = "Send",
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+            Spacer(modifier = Modifier.width(8.dp)); IconButton(
+            onClick = {
+                if (inputTeks.isNotBlank() && !isBotTyping) {
+                    val msg = inputTeks; daftarPesan.add(PesanChat(msg, true)); inputTeks =
+                        ""; kirimPesanKeBot(
+                        msg,
+                        context,
+                        daftarPesan,
+                        portofolioEmitenList,
+                        scope
+                    ) { isBotTyping = it }
+                }
+            },
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(RingColor)
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.arrow_up),
+                contentDescription = "Send",
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
+            )
+        }
         }
     }
 }
 
 private fun kirimPesanKeBot(
-    message: String,
-    context: android.content.Context,
-    daftarPesan: MutableList<PesanChat>,
-    portofolioEmitenList: List<String>,
-    scope: CoroutineScope,
-    setLoading: (Boolean) -> Unit
+    msg: String,
+    ctx: android.content.Context,
+    list: MutableList<PesanChat>,
+    emts: List<String>,
+    scp: CoroutineScope,
+    setL: (Boolean) -> Unit
 ) {
-    setLoading(true)
-    scope.launch {
+    setL(true); scp.launch {
         try {
-            val deviceId = DeviceIdHelper.getDeviceId(context)
-            val botResponse = ChatBotService.generateResponse(
-                userInput = message,
-                deviceId = deviceId,
-                portofolioEmitenList = portofolioEmitenList
+            val id = DeviceIdHelper.getDeviceId(ctx); list.add(
+                PesanChat(
+                    ChatBotService.generateResponse(
+                        msg,
+                        id,
+                        emts
+                    ), false
+                )
             )
-            daftarPesan.add(PesanChat(botResponse, false))
         } catch (e: Exception) {
-            daftarPesan.add(PesanChat("Gagal mendapatkan respon: ${e.localizedMessage}", false))
+            list.add(PesanChat("Gagal: ${e.localizedMessage}", false))
         } finally {
-            setLoading(false)
+            setL(false)
         }
     }
 }
 
 @Composable
 fun BubbleChat(pesan: PesanChat) {
-    val alignment = if (pesan.dariUser) Alignment.CenterEnd else Alignment.CenterStart
-    val bgColor = if (pesan.dariUser) RingColor else CardDark
-    val textColor = Color.White
-
-    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = alignment) {
+    val align = if (pesan.dariUser) Alignment.CenterEnd else Alignment.CenterStart
+    val bg = if (pesan.dariUser) RingColor else CardDark
+    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = align) {
         Box(
             modifier = Modifier
                 .widthIn(max = 280.dp)
@@ -282,18 +267,11 @@ fun BubbleChat(pesan: PesanChat) {
                         bottomEnd = if (pesan.dariUser) 0.dp else 16.dp
                     )
                 )
-                .background(bgColor)
+                .background(bg)
                 .padding(12.dp)
         ) {
-            if (pesan.dariUser) {
-                Text(text = pesan.teks, color = textColor, fontSize = 14.sp)
-            } else {
-                MarkdownText(
-                    markdown = pesan.teks,
-                    color = textColor,
-                    fontSize = 14.sp
-                )
-            }
+            if (pesan.dariUser) Text(text = pesan.teks, color = Color.White, fontSize = 14.sp)
+            else MarkdownText(markdown = pesan.teks, color = Color.White, fontSize = 14.sp)
         }
     }
 }

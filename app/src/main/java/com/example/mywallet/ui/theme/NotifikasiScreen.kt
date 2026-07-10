@@ -61,55 +61,45 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 
 @Composable
 fun NotifikasiScreen(onBack: () -> Unit) {
     var beritaTampil by remember { mutableStateOf<List<BeritaSaham>>(emptyList()) }
     var searchQuery by remember { mutableStateOf("") }
-    
     var isLoading by remember { mutableStateOf(true) }
     var isRefreshing by remember { mutableStateOf(false) }
     var refreshTrigger by remember { mutableIntStateOf(0) }
     val pullState = rememberPullToRefreshState()
-    
     val context = LocalContext.current
     val density = LocalDensity.current
     val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-
     val clearedBeritaIds = prefs.getStringSet("cleared_berita_ids", emptySet()) ?: emptySet()
-
     LaunchedEffect(refreshTrigger) {
         try {
-            if (refreshTrigger > 0) isRefreshing = true
-            else isLoading = true
-            
+            if (refreshTrigger > 0) isRefreshing = true else isLoading = true
             val deviceId = DeviceIdHelper.getDeviceId(context)
             val historiResponse = RetrofitClient.instance.getHistori(deviceId)
             val userEmitens = historiResponse.map { it.emiten.uppercase().trim() }.toSet()
-
             val response = RetrofitClient.instance.getBerita()
-
             if (response.status == "success") {
                 val listFiltered = response.data.filter {
-                    it.id !in clearedBeritaIds && BeritaFilterHelper.isBeritaRelevant(it, userEmitens)
+                    it.id !in clearedBeritaIds && BeritaFilterHelper.isBeritaRelevant(
+                        it,
+                        userEmitens
+                    )
                 }
-
                 beritaTampil = coroutineScope {
                     listFiltered.map { berita ->
                         async(Dispatchers.IO) {
                             try {
-                                val symbol = StockPriceHelper.buildSymbol(berita.emiten)
-
-                                var hargaLive = StockPriceHelper.getHargaLive(symbol)
-                                val persentaseLive = StockPriceHelper.getPersentaseLive(symbol)
-
-                                if (hargaLive != null && hargaLive < 1.0) {
-                                    hargaLive = 1.0 / hargaLive
-                                }
-
-                                berita.copy(
-                                    harga = hargaLive?.toInt() ?: 0,
-                                    persentase = persentaseLive ?: "-"
+                                val symbol = StockPriceHelper.buildSymbol(berita.emiten);
+                                var h = StockPriceHelper.getHargaLive(symbol);
+                                val p =
+                                    StockPriceHelper.getPersentaseLive(symbol); if (h != null && h < 1.0) h =
+                                    1.0 / h; berita.copy(
+                                    harga = h?.toInt() ?: 0,
+                                    persentase = p ?: "-"
                                 )
                             } catch (e: Exception) {
                                 berita
@@ -120,27 +110,28 @@ fun NotifikasiScreen(onBack: () -> Unit) {
             } else {
                 beritaTampil = emptyList()
             }
-
-            if (refreshTrigger > 0) kotlinx.coroutines.delay(800)
+            if (refreshTrigger > 0) delay(800)
             isRefreshing = false
-            
         } catch (e: Exception) {
             beritaTampil = emptyList()
         } finally {
-            isLoading = false
-            isRefreshing = false
+            isLoading = false; isRefreshing = false
         }
     }
-
-    val filteredBerita = remember(beritaTampil, searchQuery) {
-        if (searchQuery.isEmpty()) beritaTampil
-        else beritaTampil.filter { 
-            it.judul.contains(searchQuery, ignoreCase = true) || 
-            it.isi.contains(searchQuery, ignoreCase = true) ||
-            it.emiten.contains(searchQuery, ignoreCase = true)
+    val filteredBerita = remember(
+        beritaTampil,
+        searchQuery
+    ) {
+        if (searchQuery.isEmpty()) beritaTampil else beritaTampil.filter {
+            it.judul.contains(
+                searchQuery,
+                ignoreCase = true
+            ) || it.isi.contains(searchQuery, ignoreCase = true) || it.emiten.contains(
+                searchQuery,
+                ignoreCase = true
+            )
         }
     }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -172,7 +163,6 @@ fun NotifikasiScreen(onBack: () -> Unit) {
             ),
             singleLine = true
         )
-
         if (isLoading) {
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -193,7 +183,9 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                 isRefreshing = isRefreshing,
                 onRefresh = { refreshTrigger++ },
                 state = pullState,
-                modifier = Modifier.weight(1f).clipToBounds(),
+                modifier = Modifier
+                    .weight(1f)
+                    .clipToBounds(),
                 indicator = {
                     if (isRefreshing) {
                         PullToRefreshDefaults.Indicator(
@@ -202,18 +194,14 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                             modifier = Modifier.align(Alignment.TopCenter)
                         )
                     }
-                }
-            ) {
-                val dragAmount = if (isRefreshing || pullState.isAnimating) 0f else with(density) { pullState.distanceFraction * 80.dp.toPx() }
-                
+                }) {
+                val dragAmount =
+                    if (isRefreshing || pullState.isAnimating) 0f else with(density) { pullState.distanceFraction * 80.dp.toPx() }
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier
                         .fillMaxSize()
-                        .graphicsLayer {
-                            translationY = dragAmount
-                        }
-                ) {
+                        .graphicsLayer { translationY = dragAmount }) {
                     items(filteredBerita) { berita ->
                         Card(
                             colors = CardDefaults.cardColors(containerColor = CardDark),
@@ -238,10 +226,8 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                                             ).show()
                                         }
                                     }
-                                }
-                        ) {
+                                }) {
                             Column(modifier = Modifier.padding(20.dp)) {
-
                                 Text(
                                     text = berita.judul,
                                     color = Color.White,
@@ -249,30 +235,19 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                                     fontSize = 15.sp
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
-
-                                val isiDipotong = berita.isi.let { teks ->
-                                    val teksBersih = teks.replace(Regex("<[^>]*>"), "")
-                                    val paragraf = teksBersih.split("\n").filter { it.isNotBlank() }
-                                    val duaParagraf = paragraf.take(2).joinToString("\n\n")
-                                    when {
-                                        duaParagraf.length > 100 -> duaParagraf.take(100)
-                                            .trim() + "..."
-
-                                        paragraf.size > 2 -> "$duaParagraf..."
-                                        else -> duaParagraf
-                                    }
+                                val isi = berita.isi.replace(Regex("<[^>]*>"), "").split("\n")
+                                    .filter { it.isNotBlank() }.take(2).joinToString("\n\n").let {
+                                    if (it.length > 100) it.take(100).trim() + "..." else it
                                 }
                                 Text(
-                                    text = isiDipotong,
+                                    text = isi,
                                     color = TextGray,
                                     fontSize = 14.sp,
                                     lineHeight = 18.sp,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis
                                 )
-
                                 Spacer(modifier = Modifier.height(15.dp))
-
                                 Text(
                                     text = berita.emiten,
                                     color = Color.White,
@@ -280,7 +255,6 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                                     fontSize = 14.sp
                                 )
                                 Spacer(modifier = Modifier.height(3.dp))
-
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -292,8 +266,7 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                                                 text = "Price : ${berita.harga}",
                                                 color = TextGray,
                                                 fontSize = 14.sp
-                                            )
-                                            Spacer(modifier = Modifier.width(10.dp))
+                                            ); Spacer(modifier = Modifier.width(10.dp))
                                         }
                                         if (berita.persentase != "-" && berita.persentase.isNotEmpty()) {
                                             val isPositif = berita.persentase.startsWith("+")
@@ -302,16 +275,16 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                                                     .width(65.dp)
                                                     .clip(RoundedCornerShape(6.dp))
                                                     .background(
-                                                        if (isPositif) Color(0xFF4ADE80)
-                                                        else Color(0xFFEF4444)
+                                                        if (isPositif) Color(0xFF4ADE80) else Color(
+                                                            0xFFEF4444
+                                                        )
                                                     )
                                                     .padding(vertical = 4.dp),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Text(
                                                     text = berita.persentase,
-                                                    color = if (isPositif) Color(0xFF064E3B)
-                                                    else Color.White,
+                                                    color = if (isPositif) Color(0xFF064E3B) else Color.White,
                                                     fontSize = 12.sp,
                                                     fontWeight = FontWeight.Bold
                                                 )
@@ -325,9 +298,7 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                     }
                 }
             }
-
             Spacer(modifier = Modifier.height(16.dp))
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -343,18 +314,14 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                         contentColor = RingColor
                     ),
                     border = BorderStroke(1.dp, RingColor)
-                ) {
-                    Text("Back", fontSize = 16.sp)
-                }
-
+                ) { Text("Back", fontSize = 16.sp) }
                 OutlinedButton(
                     onClick = {
-                        val currentIds = beritaTampil.map { it.id }.toSet()
+                        val currentIds = beritaTampil.map { it.id }.toSet();
                         val newClearedIds = (prefs.getStringSet("cleared_berita_ids", emptySet())
-                            ?: emptySet()) + currentIds
-
-                        prefs.edit().putStringSet("cleared_berita_ids", newClearedIds).apply()
-                        beritaTampil = emptyList()
+                            ?: emptySet()) + currentIds; prefs.edit()
+                        .putStringSet("cleared_berita_ids", newClearedIds).apply(); beritaTampil =
+                        emptyList()
                     },
                     modifier = Modifier
                         .weight(1f)
@@ -365,9 +332,7 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                         contentColor = Color(0xFFEF4444)
                     ),
                     border = BorderStroke(1.dp, Color(0xFFEF4444))
-                ) {
-                    Text("Clear All", fontSize = 16.sp)
-                }
+                ) { Text("Clear All", fontSize = 16.sp) }
             }
         }
     }

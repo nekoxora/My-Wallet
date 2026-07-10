@@ -53,15 +53,16 @@ fun InvestmentCard(kodeEmiten: String, tanggal: String, jumlahLot: Int) {
                 color = Color.White,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 16.sp
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(text = tanggal, color = TextGray, fontSize = 12.sp)
+            ); Spacer(modifier = Modifier.height(4.dp)); Text(
+            text = tanggal,
+            color = TextGray,
+            fontSize = 12.sp
+        )
         }
         Box(
             modifier = Modifier
                 .border(1.dp, RingColor, RoundedCornerShape(20.dp))
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            contentAlignment = Alignment.Center
+                .padding(horizontal = 16.dp, vertical = 8.dp), contentAlignment = Alignment.Center
         ) {
             Text(
                 text = "$jumlahLot LOT",
@@ -77,18 +78,13 @@ fun InvestmentCard(kodeEmiten: String, tanggal: String, jumlahLot: Int) {
 @Composable
 fun SwipeableInvestmentCard(transaksi: Transaksi, onDelete: () -> Unit) {
     var sudahHapus by remember { mutableStateOf(false) }
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = {
-            if (it == SwipeToDismissBoxValue.EndToStart && !sudahHapus) {
-                sudahHapus = true
-                onDelete()
-                true
-            } else false
-        }
-    )
-
+    val state = rememberSwipeToDismissBoxState(confirmValueChange = {
+        if (it == SwipeToDismissBoxValue.EndToStart && !sudahHapus) {
+            sudahHapus = true; onDelete(); true
+        } else false
+    })
     SwipeToDismissBox(
-        state = dismissState,
+        state = state,
         enableDismissFromStartToEnd = false,
         enableDismissFromEndToStart = true,
         backgroundContent = {
@@ -98,64 +94,37 @@ fun SwipeableInvestmentCard(transaksi: Transaksi, onDelete: () -> Unit) {
                     .padding(vertical = 6.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .background(Color(0xFFEF4444))
-                    .padding(horizontal = 24.dp),
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                Text(
-                    "Hapus",
-                    fontSize = 15.sp,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+                    .padding(horizontal = 24.dp), contentAlignment = Alignment.CenterEnd
+            ) { Text("Hapus", fontSize = 15.sp, color = Color.White, fontWeight = FontWeight.Bold) }
         },
-        content = {
-            InvestmentCard(
-                kodeEmiten = transaksi.emiten,
-                tanggal = transaksi.tgl,
-                jumlahLot = transaksi.lot
-            )
-        }
-    )
+        content = { InvestmentCard(transaksi.emiten, transaksi.tgl, transaksi.lot) })
 }
 
 class NumberDotTransformation : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
-        val originalText = text.text
-        if (originalText.isEmpty()) return TransformedText(text, OffsetMapping.Identity)
-
-        val reversed = originalText.reversed()
-        var formattedReversed = ""
+        val original = text.text; if (original.isEmpty()) return TransformedText(
+            text,
+            OffsetMapping.Identity
+        )
+        val reversed = original.reversed();
+        var fmtRev = ""
         for (i in reversed.indices) {
-            formattedReversed += reversed[i]
-            if ((i + 1) % 3 == 0 && i != reversed.lastIndex) {
-                formattedReversed += "."
-            }
+            fmtRev += reversed[i]; if ((i + 1) % 3 == 0 && i != reversed.lastIndex) fmtRev += "."
         }
-        val formattedText = formattedReversed.reversed()
-
-        val offsetMapping = object : OffsetMapping {
+        val fmt = fmtRev.reversed()
+        val map = object : OffsetMapping {
             override fun originalToTransformed(offset: Int): Int {
-                if (offset <= 0) return 0
-                if (offset >= originalText.length) return formattedText.length
-                val totalDots = (originalText.length - 1) / 3
-                val dotsToRight = (originalText.length - offset - 1) / 3
-                return offset + (totalDots - dotsToRight)
+                if (offset <= 0) return 0; if (offset >= original.length) return fmt.length; return offset + ((original.length - 1) / 3 - (original.length - offset - 1) / 3)
             }
 
             override fun transformedToOriginal(offset: Int): Int {
-                if (offset <= 0) return 0
-                if (offset >= formattedText.length) return originalText.length
-                var originalOffset = 0
-                var transformedCount = 0
-                while (transformedCount < offset && originalOffset < originalText.length) {
-                    if (formattedText[transformedCount] != '.') originalOffset++
-                    transformedCount++
-                }
-                return originalOffset
+                if (offset <= 0) return 0; if (offset >= fmt.length) return original.length;
+                var origOff = 0;
+                var fmtCnt = 0; while (fmtCnt < offset && origOff < original.length) {
+                    if (fmt[fmtCnt] != '.') origOff++; fmtCnt++
+                }; return origOff
             }
         }
-
-        return TransformedText(AnnotatedString(formattedText), offsetMapping)
+        return TransformedText(AnnotatedString(fmt), map)
     }
 }

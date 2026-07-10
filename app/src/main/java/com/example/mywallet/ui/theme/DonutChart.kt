@@ -32,134 +32,87 @@ fun CustomDonutChart(
     hargaLiveMap: Map<String, Double> = emptyMap(),
     modifier: Modifier = Modifier
 ) {
-    val chartColors = List(50) { index ->
+    val colors = List(50) { i ->
         Color.hsl(
-            hue = (index * 137.508f) % 360f,
-            saturation = 0.55f + (index % 7) * 0.07f,
-            lightness = 0.45f + (index % 5) * 0.08f,
-            alpha = 1f
+            (i * 137.508f) % 360f,
+            0.55f + (i % 7) * 0.07f,
+            0.45f + (i % 5) * 0.08f
         )
     }
-
-    val emitenValueMap = mutableMapOf<String, Long>()
-    listTransaksi.forEach { transaksi ->
-        val key = transaksi.emiten.uppercase()
-        val currentValue = emitenValueMap[key] ?: 0L
-        val hargaDigunakan = hargaLiveMap[key] ?: transaksi.harga
-        val nilaiRupiah = (transaksi.lot.toDouble() * 100.0 * hargaDigunakan).toLong()
-        emitenValueMap[key] = currentValue + nilaiRupiah
+    val map = mutableMapOf<String, Long>(); listTransaksi.forEach { tx ->
+        val k = tx.emiten.uppercase(); map[k] =
+        (map[k] ?: 0L) + (tx.lot.toDouble() * 100.0 * (hargaLiveMap[k] ?: tx.harga)).toLong()
     }
-    val totalSemuaAset = emitenValueMap.values.sum()
-
-    var selectedEmiten by remember { mutableStateOf<String?>(null) }
-
-    val centerText = if (selectedEmiten != null) {
-        val nilaiSelected = emitenValueMap[selectedEmiten] ?: 0L
-        "Rp " + String.format("%,d", nilaiSelected).replace(',', '.')
-    } else {
-        "Rp " + String.format("%,d", totalSemuaAset).replace(',', '.')
-    }
-
-    val labelText = if (selectedEmiten != null) selectedEmiten!! else "Total Aset"
-
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = modifier.size(220.dp)
-    ) {
+    val total = map.values.sum();
+    var sel by remember { mutableStateOf<String?>(null) }
+    Box(contentAlignment = Alignment.Center, modifier = modifier.size(220.dp)) {
         Canvas(
-            modifier = Modifier
+            Modifier
                 .fillMaxSize()
-                .pointerInput(emitenValueMap) {
-                    detectTapGestures { tapOffset ->
-                        val canvasWidth = size.width.toFloat()
-                        val canvasHeight = size.height.toFloat()
-                        val center = Offset(canvasWidth / 2f, canvasHeight / 2f)
-                        val dx = tapOffset.x - center.x
-                        val dy = tapOffset.y - center.y
-                        val dist = kotlin.math.sqrt((dx * dx + dy * dy).toDouble()).toFloat()
-                        val minDim = minOf(canvasWidth, canvasHeight)
-                        val radius = minDim / 2f
-                        val strokeWidth = 75f
-                        val innerRadius = radius - (strokeWidth / 2f)
-                        val outerRadius = radius + (strokeWidth / 2f)
-                        if (dist in innerRadius..outerRadius) {
-                            var tapAngle =
-                                Math.toDegrees(kotlin.math.atan2(dy.toDouble(), dx.toDouble()))
-                                    .toFloat()
-                            var normalizedTap = (tapAngle + 90f) % 360f
-                            if (normalizedTap < 0) normalizedTap += 360f
-
-                            var currentAngle = 0f
-                            var hitEmiten: String? = null
-
-                            if (totalSemuaAset > 0) {
-                                for ((emiten, nilai) in emitenValueMap) {
-                                    val sweepAngle = (nilai.toFloat() / totalSemuaAset.toFloat()) * 360f
-                                    if (normalizedTap >= currentAngle && normalizedTap <= currentAngle + sweepAngle) {
-                                        hitEmiten = emiten
-                                        break
-                                    }
-                                    currentAngle += sweepAngle
-                                }
+                .pointerInput(map) {
+                    detectTapGestures { tap ->
+                        val ctr = Offset(size.width / 2f, size.height / 2f);
+                        val d =
+                            kotlin.math.sqrt(((tap.x - ctr.x) * (tap.x - ctr.x) + (tap.y - ctr.y) * (tap.y - ctr.y)).toDouble())
+                                .toFloat();
+                        val r =
+                            minOf(
+                                size.width,
+                                size.height
+                            ) / 2f; if (d in (r - 37.5f)..(r + 37.5f)) {
+                        var a = Math.toDegrees(
+                            kotlin.math.atan2(
+                                (tap.y - ctr.y).toDouble(),
+                                (tap.x - ctr.x).toDouble()
+                            )
+                        ).toFloat();
+                        var n = (a + 90f) % 360f; if (n < 0) n += 360f;
+                        var cur = 0f;
+                        var hit: String? = null; if (total > 0) {
+                            for ((e, v) in map) {
+                                val sw =
+                                    (v.toFloat() / total.toFloat()) * 360f; if (n >= cur && n <= cur + sw) {
+                                    hit = e; break
+                                }; cur += sw
                             }
-
-                            selectedEmiten = if (selectedEmiten == hitEmiten) null else hitEmiten
-                        } else {
-                            selectedEmiten = null
-                        }
+                        }; sel = if (sel == hit) null else hit
+                    } else sel = null
                     }
-                }
-        ) {
-            if (totalSemuaAset == 0L) {
-                drawArc(
-                    color = Color(0xFF3D3D7A), startAngle = -90f, sweepAngle = 360f,
-                    useCenter = false, style = Stroke(width = 75f, cap = StrokeCap.Round)
-                )
-            } else {
-                var startAngle = -90f
-                var index = 0
-
-                emitenValueMap.forEach { (emiten, nilai) ->
-                    val sweepAngle = (nilai.toFloat() / totalSemuaAset.toFloat()) * 360f
-                    val color = chartColors[index % chartColors.size]
-
-                    val isSelected = emiten == selectedEmiten
-                    val strokeStyle = if (isSelected) {
-                        Stroke(width = 85f, cap = StrokeCap.Butt)
-                    } else {
-                        Stroke(width = 75f, cap = StrokeCap.Butt)
-                    }
-
-                    drawArc(
-                        color = if (selectedEmiten == null || isSelected) color else color.copy(
-                            alpha = 0.3f
-                        ),
-                        startAngle = startAngle,
-                        sweepAngle = sweepAngle,
-                        useCenter = false,
-                        style = strokeStyle
-                    )
-
-                    startAngle += sweepAngle
-                    index++
+                }) {
+            if (total == 0L) drawArc(
+                Color(0xFF3D3D7A),
+                -90f,
+                360f,
+                false,
+                style = Stroke(75f, cap = StrokeCap.Round)
+            )
+            else {
+                var st = -90f; map.forEach { (e, v) ->
+                    val sw = (v.toFloat() / total.toFloat()) * 360f;
+                    val isS = e == sel; drawArc(
+                    if (sel == null || isS) colors[map.keys.indexOf(e) % colors.size] else colors[map.keys.indexOf(
+                        e
+                    ) % colors.size].copy(0.3f),
+                    st,
+                    sw,
+                    false,
+                    style = Stroke(if (isS) 85f else 75f, cap = StrokeCap.Butt)
+                ); st += sw
                 }
             }
         }
-
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = labelText,
+                sel ?: "Total Aset",
                 color = TextGray,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = centerText,
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
+            ); Spacer(Modifier.height(4.dp)); Text(
+            "Rp " + String.format(
+                "%,d",
+                if (sel != null) map[sel] ?: 0L else total
+            ).replace(',', '.'), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold
+        )
         }
     }
 }

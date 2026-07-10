@@ -51,12 +51,11 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FormInvestasi(onBack: () -> Unit) {
-    var kodeEmiten by remember { mutableStateOf("") }
-    var jumlahLot by remember { mutableStateOf("") }
-    var hargaBeli by remember { mutableStateOf("") }
-    val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
-
+    var e by remember { mutableStateOf("") };
+    var l by remember { mutableStateOf("") };
+    var h by remember { mutableStateOf("") };
+    val scp = rememberCoroutineScope();
+    val ctx = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -69,18 +68,15 @@ fun FormInvestasi(onBack: () -> Unit) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-
         Text(
-            text = "Tambah Portofolio",
+            "Tambah Portofolio",
             color = Color.White,
             style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-
+            fontWeight = FontWeight.Bold
+        ); Spacer(modifier = Modifier.height(24.dp))
         OutlinedTextField(
-            value = kodeEmiten,
-            onValueChange = { kodeEmiten = it },
+            value = e,
+            onValueChange = { e = it },
             label = { Text("Kode Emiten", color = TextGray) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(15.dp),
@@ -89,9 +85,7 @@ fun FormInvestasi(onBack: () -> Unit) {
                 color = Color.White,
                 fontSize = 16.sp
             ),
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Characters
-            ),
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = Color.White,
                 unfocusedTextColor = Color.White,
@@ -102,14 +96,10 @@ fun FormInvestasi(onBack: () -> Unit) {
                 cursorColor = Color.White
             )
         )
-
         Spacer(modifier = Modifier.height(16.dp))
-
         OutlinedTextField(
-            value = jumlahLot,
-            onValueChange = { input ->
-                if (input.all { char -> char.isDigit() }) jumlahLot = input
-            },
+            value = l,
+            onValueChange = { if (it.all { c -> c.isDigit() }) l = it },
             label = { Text("Jumlah Lot", color = TextGray) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(15.dp),
@@ -125,63 +115,47 @@ fun FormInvestasi(onBack: () -> Unit) {
                 cursorColor = Color.White
             )
         )
-
         Spacer(modifier = Modifier.height(16.dp))
-
         OutlinedTextField(
-            value = hargaBeli,
-            onValueChange = { input ->
-                if (input.matches(Regex("^\\d*\\.?\\d*$"))) {
-                    hargaBeli = input
-                }
-            },
+            value = h,
+            onValueChange = { if (it.matches(Regex("^\\d*\\.?\\d*$"))) h = it },
             label = { Text("Harga per Lembar", color = TextGray) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(15.dp),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.White, unfocusedTextColor = Color.White,
-                focusedBorderColor = RingColor, unfocusedBorderColor = TextGray,
-                focusedLabelColor = RingColor, unfocusedLabelColor = TextGray,
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White,
+                focusedBorderColor = RingColor,
+                unfocusedBorderColor = TextGray,
+                focusedLabelColor = RingColor,
+                unfocusedLabelColor = TextGray,
                 cursorColor = Color.White
             )
         )
-
         Spacer(modifier = Modifier.height(32.dp))
-
         Button(
             onClick = {
-                if (kodeEmiten.isNotEmpty() && jumlahLot.isNotEmpty() && hargaBeli.isNotEmpty()) {
-                    val deviceId = DeviceIdHelper.getDeviceId(context)
-                    val dataKirim = InvestasiData(
-                        device_id = deviceId,
-                        kode_emiten = kodeEmiten.uppercase(),
-                        jumlah_lot = jumlahLot.toIntOrNull() ?: 0,
-                        harga_beli = hargaBeli.replace(',', '.').toDoubleOrNull() ?: 0.0
-                    )
-                    coroutineScope.launch {
+                if (e.isNotEmpty() && l.isNotEmpty() && h.isNotEmpty()) {
+                    val id = DeviceIdHelper.getDeviceId(ctx);
+                    val d = InvestasiData(
+                        id,
+                        e.uppercase(),
+                        l.toIntOrNull() ?: 0,
+                        h.replace(',', '.').toDoubleOrNull() ?: 0.0
+                    ); scp.launch {
                         try {
-                            val response =
-                                RetrofitClient.instance.simpanInvestasi(dataKirim)
-                            Toast.makeText(
-                                context,
-                                response.message,
+                            val res = RetrofitClient.instance.simpanInvestasi(d); Toast.makeText(
+                                ctx,
+                                res.message,
                                 Toast.LENGTH_SHORT
-                            ).show()
-                            if (response.status == "success") {
-                                onBack()
-                            }
-                        } catch (e: Exception) {
-                            Toast.makeText(
-                                context,
-                                "Gagal: ${e.message}",
-                                Toast.LENGTH_LONG
-                            ).show()
+                            ).show(); if (res.status == "success") onBack()
+                        } catch (ex: Exception) {
+                            Toast.makeText(ctx, "Gagal: ${ex.message}", Toast.LENGTH_LONG).show()
                         }
                     }
                 } else {
-                    Toast.makeText(context, "Isi semua data!", Toast.LENGTH_SHORT)
-                        .show()
+                    Toast.makeText(ctx, "Isi semua data!", Toast.LENGTH_SHORT).show()
                 }
             },
             modifier = Modifier
@@ -189,25 +163,18 @@ fun FormInvestasi(onBack: () -> Unit) {
                 .height(50.dp),
             shape = RoundedCornerShape(25.dp),
             colors = ButtonDefaults.buttonColors(containerColor = RingColor)
-        ) {
-            Text("Simpan Investasi", color = Color.White, fontSize = 16.sp)
-        }
-
-        Spacer(modifier = Modifier.height(15.dp))
-
-        OutlinedButton(
-            onClick = onBack,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            shape = RoundedCornerShape(25.dp),
-            colors = ButtonDefaults.outlinedButtonColors(
-                containerColor = Color.Transparent,
-                contentColor = RingColor
-            ),
-            border = BorderStroke(1.dp, RingColor)
-        ) {
-            Text("Back", fontSize = 16.sp)
-        }
+        ) { Text("Simpan Investasi", color = Color.White, fontSize = 16.sp) }
+        Spacer(modifier = Modifier.height(15.dp)); OutlinedButton(
+        onClick = onBack,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(50.dp),
+        shape = RoundedCornerShape(25.dp),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = Color.Transparent,
+            contentColor = RingColor
+        ),
+        border = BorderStroke(1.dp, RingColor)
+    ) { Text("Back", fontSize = 16.sp) }
     }
 }
