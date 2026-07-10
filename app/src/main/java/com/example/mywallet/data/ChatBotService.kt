@@ -23,7 +23,7 @@ object ChatBotService {
     private const val API_KEY = "KODE_RAHASIA_ANDROID_123"
     private val indexMap = mapOf("IHSG" to "^JKSE", "LQ45" to "^JKLQ45")
     private val client = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS).writeTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS).writeTimeout(60, TimeUnit.SECONDS)
         .addInterceptor(HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }).build()
