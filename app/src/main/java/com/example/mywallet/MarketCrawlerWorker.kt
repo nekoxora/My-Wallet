@@ -4,19 +4,14 @@ import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.example.mywallet.data.ChatBotService
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withContext
+import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
-
 class MarketCrawlerWorker(ctx: Context, p: WorkerParameters) : CoroutineWorker(ctx, p) {
     private val client = OkHttpClient.Builder().connectTimeout(30, TimeUnit.SECONDS).build()
     private var cookie: String? = null; private var crumb: String? = null
@@ -30,31 +25,35 @@ class MarketCrawlerWorker(ctx: Context, p: WorkerParameters) : CoroutineWorker(c
     }
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
-            Log.d("CRAWLER", "Starting Dynamic Market Crawler...")
             if (cookie == null || crumb == null) refresh()
             val p = applicationContext.getSharedPreferences("crawler_prefs", Context.MODE_PRIVATE)
             val off = p.getInt("last_offset", 0); val size = 100
-            val tks = fetchAllIndoTickers(off, size)
-            if (tks.isEmpty()) { Log.d("CRAWLER", "Reached end or no data, resetting"); p.edit().putInt("last_offset", 0).apply(); return@withContext Result.success() }
-            Log.d("CRAWLER", "Fetched ${tks.size} tickers from market. Processing batch...")
+            val res = fetchWithTotal(off, size)
+            val tks = res.first; val total = res.second
+            if (tks.isEmpty()) { Log.d("CRAWLER", "End reached. Resetting."); p.edit().putInt("last_offset", 0).apply(); return@withContext Result.success() }
+            val current = off + tks.size
+            Log.d("CRAWLER", "Progress: $current / $total (" + String.format("%.1f", (current.toFloat()/total)*100) + "%)")
+            Log.d("CRAWLER", "Remaining: " + (total - current))
             val sem = Semaphore(3)
             tks.map { e -> async { sem.withPermit { ChatBotService.scrapeAndSaveEmiten(e, "crawler") } } }.awaitAll()
             p.edit().putInt("last_offset", off + size).apply(); Result.success()
         } catch (e: Exception) { Result.retry() }
     }
-    private suspend fun fetchAllIndoTickers(off: Int, sz: Int): List<String> = withContext(Dispatchers.IO) {
+    private suspend fun fetchWithTotal(off: Int, sz: Int): Pair<List<String>, Int> = withContext(Dispatchers.IO) {
         try {
             val url = "https://query1.finance.yahoo.com/v1/finance/screener?crumb=$crumb&lang=en-US&region=US"
             val body = "{\"size\":$sz,\"offset\":$off,\"sortField\":\"intradaymarketcap\",\"sortType\":\"DESC\",\"quoteType\":\"EQUITY\",\"query\":{\"operator\":\"and\",\"operands\":[{\"operator\":\"eq\",\"operands\":[\"region\",\"id\"]}]}}".toRequestBody("application/json".toMediaType())
             val req = Request.Builder().url(url).post(body).addHeader("Cookie", cookie ?: "").addHeader("User-Agent", "Mozilla/5.0").addHeader("Origin", "https://finance.yahoo.com").build()
             client.newCall(req).execute().use { r ->
-                if (r.code == 401 && refresh()) return@withContext fetchAllIndoTickers(off, sz)
-                if (!r.isSuccessful) return@withContext emptyList()
-                val res = JSONObject(r.body?.string() ?: "").optJSONObject("finance")?.optJSONArray("result")?.optJSONObject(0)?.optJSONArray("quotes") ?: return@withContext emptyList()
+                if (r.code == 401 && refresh()) return@withContext fetchWithTotal(off, sz)
+                if (!r.isSuccessful) return@withContext Pair(emptyList(), 0)
+                val j = JSONObject(r.body?.string() ?: "").optJSONObject("finance")?.optJSONArray("result")?.optJSONObject(0) ?: return@withContext Pair(emptyList(), 0)
+                val total = j.optInt("total", 0)
+                val quotes = j.optJSONArray("quotes") ?: return@withContext Pair(emptyList(), total)
                 val list = mutableListOf<String>()
-                for (i in 0 until res.length()) { val s = res.optJSONObject(i)?.optString("symbol", ""); if (s != null && s.endsWith(".JK")) list.add(s.replace(".JK", "")) }
-                list
+                for (i in 0 until quotes.length()) { val s = quotes.optJSONObject(i)?.optString("symbol", ""); if (s != null && s.endsWith(".JK")) list.add(s.replace(".JK", "")) }
+                Pair(list, total)
             }
-        } catch (e: Exception) { emptyList() }
+        } catch (e: Exception) { Pair(emptyList(), 0) }
     }
 }
