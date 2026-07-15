@@ -26,56 +26,58 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
-    companion object {
-        private const val TAG = "MainActivity"
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        NotificationHelper.createChannel(this)
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+        enableEdgeToEdge(); NotificationHelper.createChannel(this)
+        val wm = WorkManager.getInstance(this);
+        val repl = ExistingPeriodicWorkPolicy.REPLACE;
+        val keep = ExistingPeriodicWorkPolicy.KEEP
+        wm.enqueueUniquePeriodicWork(
             "berita_check",
-            ExistingPeriodicWorkPolicy.KEEP,
+            keep,
             PeriodicWorkRequestBuilder<BeritaCheckWorker>(15, TimeUnit.MINUTES).build()
         )
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+        wm.enqueueUniquePeriodicWork(
             "price_alert_check",
-            ExistingPeriodicWorkPolicy.KEEP,
+            keep,
             PeriodicWorkRequestBuilder<PriceAlertWorker>(15, TimeUnit.MINUTES).build()
         )
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+        wm.enqueueUniquePeriodicWork(
             "fundamental_check",
-            ExistingPeriodicWorkPolicy.KEEP,
+            keep,
             PeriodicWorkRequestBuilder<FundamentalSyncWorker>(24, TimeUnit.HOURS).setInitialDelay(
                 1,
                 TimeUnit.HOURS
             ).build()
         )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerForActivityResult(ActivityResultContracts.RequestPermission()) {}.launch(
-                Manifest.permission.POST_NOTIFICATIONS
-            )
-        }
+        wm.enqueueUniquePeriodicWork(
+            "market_crawler",
+            repl,
+            PeriodicWorkRequestBuilder<MarketCrawlerWorker>(2, TimeUnit.HOURS).setInitialDelay(
+                0,
+                TimeUnit.MINUTES
+            ).build()
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) {}.launch(Manifest.permission.POST_NOTIFICATIONS)
         setContent {
             MyWalletTheme {
                 Surface(
-                    modifier = Modifier.fillMaxSize(),
+                    Modifier.fillMaxSize(),
                     color = BgDark,
                     contentColor = Color.White
                 ) { MainApp() }
             }
         }
-        if (BuildConfig.DEBUG) {
-            lifecycleScope.launch(Dispatchers.IO) {
-                try {
-                    val emitenTest = "OASA"
-                    if (!ChatBotService.isDataExists(emitenTest)) {
-                        ChatBotService.scrapeAndSaveEmiten(emitenTest, "test_device")
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error: ${e.message}")
-                }
+        if (BuildConfig.DEBUG) lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                if (!ChatBotService.isDataExists("OASA")) ChatBotService.scrapeAndSaveEmiten(
+                    "OASA",
+                    "test"
+                )
+            } catch (e: Exception) {
+                Log.e("Main", "Error: ${e.message}")
             }
         }
     }
