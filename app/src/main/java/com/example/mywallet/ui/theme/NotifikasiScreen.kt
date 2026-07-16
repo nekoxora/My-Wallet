@@ -237,8 +237,8 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                                 Spacer(modifier = Modifier.height(6.dp))
                                 val isi = berita.isi.replace(Regex("<[^>]*>"), "").split("\n")
                                     .filter { it.isNotBlank() }.take(2).joinToString("\n\n").let {
-                                    if (it.length > 100) it.take(100).trim() + "..." else it
-                                }
+                                        if (it.length > 100) it.take(100).trim() + "..." else it
+                                    }
                                 Text(
                                     text = isi,
                                     color = TextGray,
