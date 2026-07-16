@@ -1,59 +1,15 @@
 package com.example.mywallet.ui.theme
-
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-
+import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.*
 enum class Layar { DASHBOARD, FORM, RINCIAN, NOTIFIKASI, CHATBOT }
-
 @Composable
 fun MainApp() {
-    var layarAktif by remember { mutableStateOf(Layar.DASHBOARD) }
-    var layarSebelumnya by remember { mutableStateOf(Layar.DASHBOARD) }
-    var notifKey by remember { mutableStateOf(0) }
-
-    when (layarAktif) {
-        Layar.DASHBOARD -> DashboardScreen(
-            onNavigateToForm = {
-                layarSebelumnya = Layar.DASHBOARD
-                layarAktif = Layar.FORM
-            },
-            onNavigateToRincian = { layarAktif = Layar.RINCIAN },
-            onNavigateToNotifikasi = {
-                notifKey++
-                layarAktif = Layar.NOTIFIKASI
-            },
-            onNavigateToChat = {
-                layarSebelumnya = Layar.DASHBOARD
-                layarAktif = Layar.CHATBOT
-            }
-        )
-
-        Layar.FORM -> FormInvestasi(
-            onBack = { layarAktif = layarSebelumnya }
-        )
-
-        Layar.RINCIAN -> RincianScreen(
-            onNavigateToHome = { layarAktif = Layar.DASHBOARD },
-            onNavigateToForm = {
-                layarSebelumnya = Layar.RINCIAN
-                layarAktif = Layar.FORM
-            },
-            onNavigateToChat = {
-                layarSebelumnya = Layar.RINCIAN
-                layarAktif = Layar.CHATBOT
-            }
-        )
-
-        Layar.NOTIFIKASI -> key(notifKey) {
-            NotifikasiScreen(onBack = { layarAktif = Layar.DASHBOARD })
-        }
-
-        Layar.CHATBOT -> ChatBotScreen(
-            onBack = { layarAktif = layarSebelumnya }
-        )
+    var act by remember { mutableStateOf(Layar.DASHBOARD) }; var prev by remember { mutableStateOf(Layar.DASHBOARD) }; var nKey by remember { mutableIntStateOf(0) }
+    when (act) {
+        Layar.DASHBOARD -> DashboardScreen({ prev = Layar.DASHBOARD; act = Layar.FORM }, { act = Layar.RINCIAN }, { nKey++; act = Layar.NOTIFIKASI }, { prev = Layar.DASHBOARD; act = Layar.CHATBOT })
+        Layar.FORM -> { BackHandler { act = prev }; FormInvestasi { act = prev } }
+        Layar.RINCIAN -> { BackHandler { act = Layar.DASHBOARD }; RincianScreen({ act = Layar.DASHBOARD }, { prev = Layar.RINCIAN; act = Layar.FORM }, { prev = Layar.RINCIAN; act = Layar.CHATBOT }) }
+        Layar.NOTIFIKASI -> key(nKey) { BackHandler { act = Layar.DASHBOARD }; NotifikasiScreen { act = Layar.DASHBOARD } }
+        Layar.CHATBOT -> { BackHandler { act = prev }; ChatBotScreen { act = prev } }
     }
 }
