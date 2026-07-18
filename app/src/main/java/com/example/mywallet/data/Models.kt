@@ -5,15 +5,11 @@ data class InvestasiData(
     val kode_emiten: String,
     val jumlah_lot: Int,
     val harga_beli: Double,
+    val tgl: String? = null
 )
 
-data class DeleteData(
-    val device_id: String,
-    val emiten: String
-)
-
+data class DeleteData(val device_id: String, val emiten: String)
 data class ApiResponse(val status: String, val message: String)
-
 data class Transaksi(
     val id: Int,
     val emiten: String,
@@ -29,12 +25,9 @@ data class BeritaSaham(
     val emiten: String,
     val tgl: String,
     val harga: Int = 0,
+    val hargaStr: String? = null,
     val persentase: String = "-",
     val url: String
 )
 
-data class BeritaResponse(
-    val status: String,
-    val total: Int,
-    val data: List<BeritaSaham>
-)
+data class BeritaResponse(val status: String, val total: Int, val data: List<BeritaSaham>)
