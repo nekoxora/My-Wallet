@@ -89,17 +89,16 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                         uE
                     )
                 }
+                val cachedBiRate = StockPriceHelper.getBiRateValue()?.let { "$it%" } ?: "-"
                 bTampil = coroutineScope {
                     filt.map { b ->
                         async(Dispatchers.IO) {
                             try {
                                 val e = b.emiten.uppercase().trim()
-                                if (e == "BI RATE") {
-                                    val rate =
-                                        StockPriceHelper.getBiRateValue(); return@async b.copy(
-                                        hargaStr = rate?.let { "$it%" } ?: "-",
-                                        persentase = "")
-                                }
+                                if (e == "BI RATE") return@async b.copy(
+                                    hargaStr = cachedBiRate,
+                                    persentase = ""
+                                )
                                 val isG = BeritaFilterHelper.isGlobal(b.emiten);
                                 val sym = StockPriceHelper.buildSymbol(b.emiten, isG)
                                 var h = StockPriceHelper.getHargaLiveWithMeta(sym)
@@ -226,8 +225,8 @@ fun NotifikasiScreen(onBack: () -> Unit) {
                                 ); Spacer(modifier = Modifier.height(6.dp))
                                 val isi = b.isi.replace(Regex("<[^>]*>"), "").split("\n")
                                     .filter { it.isNotBlank() }.take(2).joinToString("\n\n").let {
-                                        if (it.length > 100) it.take(100).trim() + "..." else it
-                                    }
+                                    if (it.length > 100) it.take(100).trim() + "..." else it
+                                }
                                 Text(
                                     text = isi,
                                     color = TextGray,
