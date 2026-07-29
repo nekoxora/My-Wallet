@@ -9,6 +9,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.lifecycleScope
@@ -23,6 +26,7 @@ import com.example.mywallet.ui.theme.MyWalletTheme
 import com.google.ai.client.generativeai.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
@@ -32,13 +36,14 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) registerForActivityResult(
             ActivityResultContracts.RequestPermission()
         ) {}.launch(Manifest.permission.POST_NOTIFICATIONS)
+        var updateJson by mutableStateOf<JSONObject?>(null)
+        lifecycleScope.launch { updateJson = UpdateHelper.checkUpdate(this@MainActivity) }
         setContent {
             MyWalletTheme {
-                Surface(
-                    Modifier.fillMaxSize(),
-                    color = BgDark,
-                    contentColor = Color.White
-                ) { MainApp() }
+                Surface(Modifier.fillMaxSize(), color = BgDark, contentColor = Color.White) {
+                    MainApp()
+                    updateJson?.let { UpdateDialog(it) { updateJson = null } }
+                }
             }
         }
         lifecycleScope.launch(Dispatchers.IO) {
